@@ -1,0 +1,131 @@
+<!-- =========================================
+         ACCOUNT / LOGIN MODAL
+    ========================================== -->
+
+    <div
+        class="modal-overlay"
+        id="accountModal"
+    >
+
+        <div class="checkout-modal">
+
+            <button
+                class="close-button modal-close"
+                id="closeAccount"
+                type="button"
+            >
+                ×
+            </button>
+
+            <div id="accountLoggedOut">
+
+                <p class="eyebrow">
+                    ACCOUNT
+                </p>
+
+                <h2 id="accountFormTitle">
+                    Log In
+                </h2>
+
+                <p class="checkout-note">
+                    Log in or create an account to check out faster next time.
+                </p>
+
+                <form id="accountForm">
+
+                    <div class="form-group">
+                        <label for="accountEmail">Email</label>
+                        <input
+                            id="accountEmail"
+                            type="email"
+                            required
+                            placeholder="you@example.com"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="accountPassword">Password</label>
+                        <div class="password-field-wrapper">
+                            <input
+                                id="accountPassword"
+                                type="password"
+                                required
+                                minlength="6"
+                                placeholder="At least 6 characters"
+                            >
+                            <button
+                                type="button"
+                                class="password-toggle-button"
+                                id="togglePasswordVisibility"
+                                aria-label="Show password"
+                            >
+                                <svg id="passwordEyeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div
+                        id="accountError"
+                        class="checkout-error"
+                    ></div>
+
+                    <button
+                        type="submit"
+                        class="primary-button full-width"
+                        id="accountSubmitButton"
+                    >
+                        Log In
+                    </button>
+
+                </form>
+
+                <p class="account-toggle">
+                    <span id="accountToggleText">Don't have an account?</span>
+                    <button type="button" id="accountToggleMode">Create one</button>
+                </p>
+
+            </div>
+
+            <div id="accountLoggedIn" class="hidden">
+
+                <p class="eyebrow">
+                    ACCOUNT
+                </p>
+
+                <h2>Welcome back</h2>
+
+                <p class="checkout-note" id="accountEmailDisplay"></p>
+
+                <h3 class="account-orders-heading">My Orders</h3>
+
+                <div id="myOrdersList" class="my-orders-list"></div>
+
+                <h3 class="account-orders-heading">My Wishlist</h3>
+
+                <div id="myWishlistList" class="my-wishlist-list"></div>
+
+                <h3 class="account-orders-heading">Payment Methods</h3>
+                <p class="checkout-note payment-methods-note">
+                    Save your PayPal for a faster checkout next time.
+                </p>
+
+                <div id="myPaymentMethodsList" class="my-payment-methods-list"></div>
+
+                <div id="savePaypalButtonContainer" class="paypal-button-container save-paypal-button"></div>
+
+                <button
+                    type="button"
+                    class="secondary-button full-width"
+                    id="logoutButton"
+                >
+                    Log Out
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>

@@ -1,0 +1,7 @@
+{
+  "engravingStyles": [
+    { "id": "classic", "name": "Classic", "extra": 0 },
+    { "id": "script", "name": "Script", "extra": 5 },
+    { "id": "bold", "name": "Bold", "extra": 5 }
+  ]
+}

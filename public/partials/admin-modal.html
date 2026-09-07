@@ -1,0 +1,216 @@
+<!-- =========================================
+         ADMIN — MANAGE SHOP MODAL (owner only)
+    ========================================== -->
+
+    <div
+        class="modal-overlay"
+        id="adminModal"
+    >
+
+        <div class="checkout-modal admin-modal">
+
+            <button
+                class="close-button modal-close"
+                id="closeAdmin"
+                type="button"
+            >
+                ×
+            </button>
+
+            <p class="eyebrow">
+                OWNER TOOLS
+            </p>
+
+            <h2>Manage Shop</h2>
+
+            <div class="admin-tabs">
+                <button type="button" class="admin-tab active" id="adminTabListings">Listings</button>
+                <button type="button" class="admin-tab" id="adminTabOrders">Orders</button>
+                <button type="button" class="admin-tab" id="adminTabShipping">Shipping</button>
+            </div>
+
+            <div
+                id="adminError"
+                class="checkout-error"
+            ></div>
+
+            <div class="admin-layout" id="adminListingsSection">
+
+                <div class="admin-list">
+
+                    <h3>Current Listings</h3>
+
+                    <div id="adminProductList"></div>
+
+                </div>
+
+                <div class="admin-form-panel">
+
+                    <h3 id="adminFormTitle">Add a New Listing</h3>
+
+                    <form id="adminProductForm">
+
+                        <input type="hidden" id="adminProductId">
+
+                        <div class="form-group">
+                            <label for="adminCategory">Category</label>
+                            <select id="adminCategory" required>
+                                <option value="cutting_board">Cutting Board</option>
+                                <option value="soap_candle">Soap & Candle</option>
+                                <option value="resin_craft">Resin Craft</option>
+                                <option value="jewelry">Jewelry</option>
+                                <option value="holiday">Holiday</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="adminName">Name</label>
+                            <input id="adminName" type="text" required placeholder="Product name">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="adminDescription">Description</label>
+                            <textarea id="adminDescription" placeholder="A short description customers will see"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="adminPrice">Price (USD)</label>
+                            <input id="adminPrice" type="number" min="0" step="0.01" required placeholder="49.00">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="adminStock">Amount in Stock</label>
+                            <input id="adminStock" type="number" min="0" step="1" required placeholder="12">
+                            <p class="input-help">
+                                Customers won't be able to order more than this. Set to 0 to mark it out of stock.
+                            </p>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="adminTags">Tags (optional)</label>
+                            <input id="adminTags" type="text" placeholder="walnut, rustic, wedding gift">
+                            <p class="input-help">
+                                Comma-separated. Helps search and "You May Also Like" find this item.
+                            </p>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Cover Photo</label>
+
+                            <div id="adminDropZone" class="admin-drop-zone">
+                                <img id="adminImagePreview" class="admin-image-preview hidden">
+                                <span id="adminDropZoneText">Drag a photo here, or click to choose one</span>
+                                <input type="file" id="adminImageInput" accept="image/*" class="admin-file-input">
+                            </div>
+
+                        </div>
+
+                        <div class="form-group">
+                            <label>Additional Photos</label>
+                            <p class="input-help admin-extra-photos-help">
+                                Shown as a swipeable gallery on the item's page — e.g. the whole
+                                board, the pieces, and the box for a chess set.
+                            </p>
+
+                            <p class="checkout-note" id="adminExtraPhotosLocked">
+                                Save this listing first, then click Edit on it to add more photos.
+                            </p>
+
+                            <div id="adminExtraPhotosManager" class="hidden">
+
+                                <div id="adminExtraPhotosList" class="admin-extra-photos-list"></div>
+
+                                <div id="adminExtraDropZone" class="admin-drop-zone admin-extra-drop-zone">
+                                    <span>Drag one or more photos here, or click to choose</span>
+                                    <input type="file" id="adminExtraImageInput" accept="image/*" multiple class="admin-file-input">
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                        <div class="admin-form-actions">
+
+                            <button
+                                type="button"
+                                class="secondary-button"
+                                id="adminCancelEdit"
+                            >
+                                Cancel
+                            </button>
+
+                            <button
+                                type="submit"
+                                class="primary-button"
+                                id="adminSaveButton"
+                            >
+                                Add Listing
+                            </button>
+
+                        </div>
+
+                    </form>
+
+                </div>
+
+            </div>
+
+            <div class="admin-orders-section hidden" id="adminOrdersSection">
+
+                <h3>All Orders</h3>
+
+                <div id="adminOrdersList"></div>
+
+            </div>
+
+            <div class="admin-shipping-section hidden" id="adminShippingSection">
+
+                <h3>Shipping Methods</h3>
+                <p class="checkout-note">These are the options customers choose between at checkout.</p>
+
+                <div id="adminShippingMethodsList" class="admin-shipping-methods-list"></div>
+
+                <form id="adminShippingMethodForm" class="admin-shipping-method-form">
+
+                    <input type="hidden" id="adminShippingMethodId">
+
+                    <div class="admin-shipping-form-row">
+                        <div class="field-group">
+                            <label for="adminShippingName">Name</label>
+                            <input id="adminShippingName" type="text" required placeholder="Standard Shipping">
+                        </div>
+                        <div class="field-group">
+                            <label for="adminShippingPrice">Price (USD)</label>
+                            <input id="adminShippingPrice" type="number" min="0" step="0.01" required placeholder="6.00">
+                        </div>
+                        <div class="field-group">
+                            <label for="adminShippingDaysMin">Min Days</label>
+                            <input id="adminShippingDaysMin" type="number" min="0" placeholder="5">
+                        </div>
+                        <div class="field-group">
+                            <label for="adminShippingDaysMax">Max Days</label>
+                            <input id="adminShippingDaysMax" type="number" min="0" placeholder="8">
+                        </div>
+                    </div>
+
+                    <div class="admin-form-actions">
+                        <button type="button" class="secondary-button" id="adminShippingCancelEdit">Cancel</button>
+                        <button type="submit" class="primary-button" id="adminShippingSaveButton">Add Method</button>
+                    </div>
+
+                </form>
+
+                <h3 class="admin-shipping-thresholds-heading">Free Shipping Thresholds</h3>
+                <p class="checkout-note">
+                    Set a dollar amount per shop section. When a customer's items
+                    in that section add up to at least this much, shipping is
+                    free. Leave blank to never offer free shipping for that section.
+                </p>
+
+                <div id="adminCategoryThresholdsList" class="admin-category-thresholds-list"></div>
+
+            </div>
+
+        </div>
+
+    </div>

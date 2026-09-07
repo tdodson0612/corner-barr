@@ -1,0 +1,151 @@
+<!-- /corner-barr/product.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Corner Barr | Item</title>
+
+    <link
+        rel="preconnect"
+        href="https://fonts.googleapis.com"
+    >
+
+    <link
+        rel="preconnect"
+        href="https://fonts.gstatic.com"
+        crossorigin
+    >
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+    >
+
+    <link
+        rel="stylesheet"
+        href="css/styles.css"
+    >
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+</head>
+
+
+<body>
+
+
+    <div id="header-slot"></div>
+
+
+    <main>
+
+        <div id="productLoading" class="product-loading">Loading…</div>
+
+        <div id="productError" class="product-error hidden">
+            <p class="eyebrow">NOT FOUND</p>
+            <h2>We couldn't find that item.</h2>
+            <p class="checkout-note">
+                It may have been removed. <a href="shop.html">Back to the shop</a>
+            </p>
+        </div>
+
+        <section id="productDetail" class="product-detail hidden">
+
+            <div class="product-detail-image-wrap">
+
+                <div class="product-detail-image" id="productDetailImage"></div>
+
+                <div class="product-gallery-thumbs" id="productGalleryThumbs"></div>
+
+            </div>
+
+            <div class="product-detail-info">
+
+                <p class="eyebrow" id="productDetailCategory"></p>
+
+                <h1 id="productDetailName"></h1>
+
+                <p class="product-detail-description" id="productDetailDescription"></p>
+
+
+                <!-- CUSTOMIZATION (cutting boards only) -->
+                <div id="customizationSection" class="customization-section hidden">
+
+                    <div class="form-group">
+                        <label for="engravingText">Engraving</label>
+                        <input
+                            type="text"
+                            id="engravingText"
+                            maxlength="30"
+                            placeholder="Example: The Smith Family"
+                        >
+                        <div class="input-help">Up to 30 characters</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Engraving style</label>
+                        <div class="style-options" id="styleOptions"></div>
+                    </div>
+
+                </div>
+
+
+                <div class="product-detail-price" id="productDetailPrice"></div>
+
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="giftMessage">
+                        <span>This is a gift</span>
+                    </label>
+                </div>
+
+                <div class="gift-message-container" id="giftMessageContainer">
+                    <label for="giftMessageText">Gift message</label>
+                    <textarea
+                        id="giftMessageText"
+                        maxlength="200"
+                        placeholder="Write a short message..."
+                    ></textarea>
+                </div>
+
+
+                <button
+                    type="button"
+                    class="primary-button full-width product-detail-add-button"
+                    id="productAddToCartButton"
+                >
+                    Add to Cart
+                </button>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <div id="footer-slot"></div>
+
+    <div id="cart-drawer-slot"></div>
+    <div id="checkout-modal-slot"></div>
+    <div id="account-modal-slot"></div>
+    <div id="admin-modal-slot"></div>
+
+
+    <script src="js/partials.js"></script>
+    <script src="js/shared.js"></script>
+    <script src="js/product.js"></script>
+
+</body>
+
+</html>

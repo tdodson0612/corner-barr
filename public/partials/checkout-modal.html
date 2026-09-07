@@ -1,0 +1,256 @@
+<!-- =========================================
+         CHECKOUT MODAL
+    ========================================== -->
+
+    <div
+        class="modal-overlay"
+        id="checkoutModal"
+    >
+
+        <div class="checkout-modal">
+
+            <button
+                class="close-button modal-close"
+                id="closeCheckout"
+                type="button"
+            >
+                ×
+            </button>
+
+            <p class="eyebrow">
+                CHECKOUT
+            </p>
+
+            <h2>
+                Almost there.
+            </h2>
+
+            <p class="checkout-note">
+                Enter your information, then pay securely
+                with PayPal or a debit/credit card below.
+            </p>
+
+
+            <div id="checkoutFormFields">
+
+                <form id="checkoutForm">
+
+                    <div class="form-group">
+
+                        <label for="customerName">
+                            Name
+                        </label>
+
+                        <input
+                            id="customerName"
+                            type="text"
+                            required
+                            placeholder="Your name"
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="customerEmail">
+                            Email
+                        </label>
+
+                        <input
+                            id="customerEmail"
+                            type="email"
+                            required
+                            placeholder="you@example.com"
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="customerPhone">
+                            Phone
+                        </label>
+
+                        <input
+                            id="customerPhone"
+                            type="tel"
+                            placeholder="Optional"
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="customerAddress1">
+                            Shipping Address
+                        </label>
+
+                        <input
+                            id="customerAddress1"
+                            type="text"
+                            required
+                            autocomplete="address-line1"
+                            placeholder="Street address"
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="customerAddress2">
+                            Apt / Suite (optional)
+                        </label>
+
+                        <input
+                            id="customerAddress2"
+                            type="text"
+                            autocomplete="address-line2"
+                            placeholder="Apt, suite, etc. (optional)"
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="customerCity">
+                            City
+                        </label>
+
+                        <input
+                            id="customerCity"
+                            type="text"
+                            required
+                            autocomplete="address-level2"
+                            placeholder="City"
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="customerState">
+                            State
+                        </label>
+
+                        <input
+                            id="customerState"
+                            type="text"
+                            required
+                            autocomplete="address-level1"
+                            placeholder="OR"
+                            maxlength="2"
+                            style="text-transform: uppercase;"
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="customerZip">
+                            ZIP
+                        </label>
+
+                        <input
+                            id="customerZip"
+                            type="text"
+                            required
+                            autocomplete="postal-code"
+                            inputmode="numeric"
+                            placeholder="97420"
+                            maxlength="10"
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="customerNotes">
+                            Order notes
+                        </label>
+
+                        <textarea
+                            id="customerNotes"
+                            placeholder="Anything we should know?"
+                        ></textarea>
+
+                    </div>
+
+                </form>
+
+
+                <div class="shipping-section">
+
+                    <label class="shipping-section-label">Shipping</label>
+
+                    <div id="shippingOptions" class="shipping-options"></div>
+
+                </div>
+
+
+                <div class="checkout-summary">
+
+                    <span>
+                        Order total
+                    </span>
+
+                    <strong id="checkoutTotal">
+                        $0.00
+                    </strong>
+
+                </div>
+
+
+                <div
+                    id="checkoutError"
+                    class="checkout-error"
+                ></div>
+
+
+                <div id="savedPaymentMethodsSection" class="saved-payment-methods-section hidden">
+
+                    <p class="shipping-section-label">Quick Pay</p>
+
+                    <div id="savedPaymentMethodsList" class="saved-payment-methods-list"></div>
+
+                    <p class="checkout-note saved-methods-or">— or pay another way below —</p>
+
+                </div>
+
+
+                <div class="save-wallet-option hidden" id="saveWalletOption">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="saveWalletCheckbox">
+                        <span>Save my PayPal for next time</span>
+                    </label>
+                </div>
+
+
+                <div
+                    id="paypal-button-container"
+                    class="paypal-button-container"
+                ></div>
+
+
+                <p class="payment-placeholder">
+                    Secured by PayPal. Pay with PayPal or a debit/credit card.
+                </p>
+
+            </div>
+
+
+            <div
+                id="orderConfirmation"
+                class="order-confirmation"
+            ></div>
+
+        </div>
+
+    </div>
