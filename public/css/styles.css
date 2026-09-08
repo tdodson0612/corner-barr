@@ -2471,6 +2471,7 @@ textarea:focus {
 ========================================= */
 
 .header-actions {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -3716,4 +3717,608 @@ textarea:focus {
         padding:
             30px 22px;
     }
+}
+
+
+/* =========================================
+   HEADER SEARCH
+   (new — search bar added to header.html)
+========================================= */
+
+.header-search {
+    position: relative;
+    flex: 1;
+    max-width: 340px;
+}
+
+.header-search-input {
+    width: 100%;
+    height: 44px;
+    padding: 0 40px 0 16px;
+    border: none;
+    background: #000;
+    color: white;
+    font-size: 12px;
+    letter-spacing: 0.3px;
+}
+
+.header-search-input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.header-search-input:focus {
+    outline: 2px solid var(--wood-light);
+    outline-offset: -2px;
+}
+
+.header-search-clear {
+    position: absolute;
+    top: 0;
+    right: 0;
+    height: 44px;
+    width: 36px;
+    border: none;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 20px;
+    line-height: 1;
+}
+
+.header-search-clear:hover {
+    color: white;
+}
+
+.header-search-results {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 150;
+    max-height: 420px;
+    overflow-y: auto;
+    background: white;
+    box-shadow: var(--shadow);
+}
+
+.search-result-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+}
+
+.search-result-row:last-child {
+    border-bottom: none;
+}
+
+.search-result-row:hover {
+    background: var(--cream-dark);
+}
+
+.search-result-thumb,
+.search-result-thumb-placeholder {
+    width: 42px;
+    height: 42px;
+    flex-shrink: 0;
+    background: var(--cream-dark);
+    overflow: hidden;
+}
+
+.search-result-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.search-result-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--charcoal);
+}
+
+.search-result-price {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+}
+
+.search-no-results {
+    padding: 20px 16px;
+    color: var(--muted);
+    font-size: 12px;
+    text-align: center;
+}
+
+@media (max-width: 850px) {
+    .header-search {
+        max-width: none;
+    }
+}
+
+@media (max-width: 560px) {
+    .header-search-input,
+    .header-search-clear,
+    .notification-bell-button {
+        height: 40px;
+    }
+
+    .header-search-input {
+        font-size: 11px;
+    }
+}
+
+
+/* =========================================
+   NOTIFICATIONS
+   (new — bell icon added to header.html)
+========================================= */
+
+.notification-bell-button {
+    position: relative;
+    border: none;
+    background: #000;
+    color: #fff;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+.notification-bell-button:hover {
+    background: #222;
+}
+
+.notification-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    border-radius: 50%;
+    background: #8d4c40;
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.notification-panel {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    z-index: 150;
+    width: min(360px, 90vw);
+    max-height: 480px;
+    overflow-y: auto;
+    background: white;
+    box-shadow: var(--shadow);
+    display: none;
+}
+
+.notification-panel.open {
+    display: block;
+}
+
+.notification-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--charcoal);
+}
+
+.notification-mark-all {
+    border: none;
+    background: none;
+    color: var(--forest);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: none;
+    letter-spacing: 0;
+    text-decoration: underline;
+}
+
+.notification-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.notification-row {
+    position: relative;
+    padding: 12px 40px 12px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+}
+
+.notification-row.unread {
+    background: rgba(38, 56, 45, 0.06);
+}
+
+.notification-row-title {
+    font-weight: 700;
+    color: var(--charcoal);
+}
+
+.notification-row-body {
+    margin-top: 3px;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+.notification-row-time {
+    margin-top: 5px;
+    color: var(--muted);
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.notification-row-link {
+    display: block;
+    color: inherit;
+}
+
+.notification-dismiss {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    border: none;
+    background: none;
+    color: var(--muted);
+    font-size: 16px;
+    line-height: 1;
+    width: 22px;
+    height: 22px;
+}
+
+.notification-dismiss:hover {
+    color: #8d4c40;
+}
+
+
+/* =========================================
+   STOCK STATUS
+   (new — shop grid cards + product detail page)
+========================================= */
+
+.stock-status {
+    display: inline-block;
+    padding: 3px 10px;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-radius: 2px;
+    white-space: nowrap;
+}
+
+.stock-status-in {
+    background: rgba(38, 56, 45, 0.12);
+    color: var(--forest);
+}
+
+.stock-status-low {
+    background: rgba(138, 92, 57, 0.15);
+    color: var(--wood);
+}
+
+.stock-status-out {
+    background: rgba(141, 76, 64, 0.12);
+    color: #8d4c40;
+}
+
+.product-card-out-of-stock .product-image {
+    opacity: 0.55;
+}
+
+.product-stock-status {
+    margin-top: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    background: none;
+    padding: 0;
+}
+
+.product-stock-status.stock-status-in {
+    color: var(--forest);
+}
+
+.product-stock-status.stock-status-low {
+    color: var(--wood);
+}
+
+.product-stock-status.stock-status-out {
+    color: #8d4c40;
+}
+
+
+/* =========================================
+   REVIEWS
+   (new — product detail page)
+========================================= */
+
+.product-reviews-section {
+    margin-top: 60px;
+    padding-top: 40px;
+    border-top: 1px solid var(--border);
+}
+
+.product-reviews-section h2 {
+    margin-top: 8px;
+    font-family: var(--serif);
+    font-size: clamp(30px, 4vw, 42px);
+    line-height: 1;
+}
+
+.review-summary {
+    margin-top: 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.review-summary-average {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.review-summary-average strong {
+    font-family: var(--serif);
+    font-size: 26px;
+}
+
+.review-summary-count {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.star-display {
+    color: var(--wood);
+    font-size: 16px;
+    letter-spacing: 1px;
+}
+
+.rating-distribution {
+    margin-top: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-width: 320px;
+}
+
+.rating-distribution-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+    color: var(--muted);
+}
+
+.rating-distribution-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--cream-dark);
+}
+
+.rating-distribution-fill {
+    height: 100%;
+    background: var(--wood);
+}
+
+.rating-distribution-count {
+    min-width: 20px;
+    text-align: right;
+}
+
+.review-photos-gallery {
+    margin-top: 22px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.review-photos-gallery img {
+    width: 76px;
+    height: 76px;
+    object-fit: cover;
+    box-shadow: var(--shadow);
+}
+
+.review-form {
+    margin-top: 30px;
+    padding: 25px;
+    background: var(--cream-dark);
+    max-width: 460px;
+}
+
+.review-form h3 {
+    font-family: var(--serif);
+    font-size: 22px;
+    margin-bottom: 14px;
+}
+
+.review-star-input {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.review-star-button {
+    border: none;
+    background: none;
+    font-size: 26px;
+    line-height: 1;
+    color: var(--border);
+}
+
+.review-star-button.active {
+    color: var(--wood);
+}
+
+.review-form textarea {
+    margin-bottom: 14px;
+    color: var(--charcoal);
+    background: white;
+    border: 1px solid var(--border);
+}
+
+.review-form .admin-drop-zone {
+    margin-bottom: 14px;
+}
+
+.reviews-list {
+    margin-top: 35px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    max-width: 640px;
+}
+
+.review-row {
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+}
+
+.review-row-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.review-row-name {
+    font-weight: 700;
+    font-size: 13px;
+}
+
+.review-row-text {
+    margin-top: 8px;
+    color: var(--charcoal);
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+.review-row-photo {
+    margin-top: 10px;
+    width: 110px;
+    height: 110px;
+    object-fit: cover;
+}
+
+.review-row [data-delete-review] {
+    margin-top: 10px;
+}
+
+
+/* =========================================
+   RECOMMENDATIONS
+   (new — "You May Also Like" + "Recommended For You")
+========================================= */
+
+.similar-products-section,
+.recommended-for-you-section {
+    margin-top: 60px;
+}
+
+.similar-products-section {
+    padding-top: 40px;
+    border-top: 1px solid var(--border);
+}
+
+.similar-products-section .eyebrow,
+.recommended-for-you-section .eyebrow {
+    display: block;
+    margin-bottom: 15px;
+}
+
+.similar-products-grid,
+.recommended-products-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+}
+
+.recommended-for-you-section {
+    width: min(1200px, 92%);
+    margin-left: auto;
+    margin-right: auto;
+    padding-top: 10px;
+}
+
+@media (max-width: 850px) {
+    .similar-products-grid,
+    .recommended-products-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 560px) {
+    .similar-products-grid,
+    .recommended-products-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+/* =========================================
+   TRACK YOUR ORDER BUTTON
+   (new — customer order history)
+========================================= */
+
+.track-order-button {
+    display: inline-flex;
+    margin-top: 10px;
+    min-height: 38px;
+    padding: 0 16px;
+    font-size: 10px;
+}
+
+
+/* =========================================
+   CHECKOUT ADDRESS FIELDS
+   (new — City/State/ZIP sit in a row on wider screens)
+========================================= */
+
+.checkout-modal .form-row {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr 1fr;
+    gap: 12px;
+}
+
+.checkout-modal .form-row .form-group {
+    margin-top: 25px;
+}
+
+@media (max-width: 560px) {
+    .checkout-modal .form-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+/* =========================================
+   FIX: admin form help text on a light background
+   (.input-help further up was written for the dark
+   custom-builder section on the homepage; the admin
+   modal and shipping form have light backgrounds, so
+   they need their own readable color here.)
+========================================= */
+
+.admin-form-panel .input-help,
+.admin-shipping-method-form .input-help {
+    color: var(--muted);
 }
