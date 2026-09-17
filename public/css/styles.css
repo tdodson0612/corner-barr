@@ -1817,6 +1817,13 @@ textarea:focus {
         3px;
 }
 
+.about-card-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
 
 /* =========================================
    CART
