@@ -1731,9 +1731,6 @@ textarea:focus {
 
     box-shadow:
         var(--shadow);
-
-    transform:
-        rotate(2deg);
 }
 
 .wood-grain {
