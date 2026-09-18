@@ -33,6 +33,10 @@ const ORDER_STATUS_MESSAGES = {
     delivered: {
         title: "Your order has been delivered",
         body: "Your order has arrived. We hope you love it!"
+    },
+    canceled: {
+        title: "Your order has been canceled",
+        body: "If you were expecting a refund, it will be processed to your original payment method."
     }
 };
 
@@ -182,10 +186,32 @@ async function notifyWishlistersOfStockChange(product, previousStock, newStock) 
 
 }
 
+/**
+ * Notifies the customer whenever a refund is issued — separate from
+ * order status change, since a refund can happen on its own (e.g. a
+ * goodwill partial refund) without the order being canceled at all.
+ */
+async function notifyCustomerOfRefund(order, amount) {
+
+    if (!order.user_id) {
+        return;
+    }
+
+    await createNotification({
+        userId: order.user_id,
+        type: "refund_issued",
+        title: "You've received a refund",
+        body: `A refund of $${Number(amount).toFixed(2)} has been issued to your original payment method.`,
+        relatedOrderId: order.id
+    });
+
+}
+
 module.exports = {
     createNotification,
     notifyOrderStatusChange,
     notifyOrderReceived,
     notifyOwnerOfNewOrder,
-    notifyWishlistersOfStockChange
+    notifyWishlistersOfStockChange,
+    notifyCustomerOfRefund
 };

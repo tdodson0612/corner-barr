@@ -2891,6 +2891,11 @@ textarea:focus {
     color: white;
 }
 
+.order-status-canceled {
+    background: rgba(141, 76, 64, 0.12);
+    color: #8d4c40;
+}
+
 .order-card-items {
     color: var(--muted);
     margin-bottom: 6px;
@@ -3031,6 +3036,67 @@ textarea:focus {
     .admin-order-shipping-fields {
         grid-template-columns: 1fr 1fr;
     }
+}
+
+.admin-order-refund {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--border);
+}
+
+.admin-order-refunded-note {
+    margin-bottom: 8px;
+    color: var(--wood);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.admin-order-refund-row {
+    display: flex;
+    align-items: end;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.admin-order-refund-row label {
+    display: block;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    margin-bottom: 5px;
+    width: 100%;
+}
+
+.admin-refund-amount-input {
+    width: 100px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    background: white;
+    color: var(--charcoal);
+    font-size: 12px;
+}
+
+.admin-refund-preset {
+    border: 1px solid var(--border);
+    background: transparent;
+    padding: 8px 10px;
+    font-size: 10px;
+    text-transform: uppercase;
+}
+
+.admin-refund-preset:hover {
+    background: var(--cream-dark);
+}
+
+.admin-refund-submit {
+    background: #8d4c40;
+    border-color: #8d4c40;
+}
+
+.admin-refund-submit:hover {
+    background: #6f3b32;
 }
 
 

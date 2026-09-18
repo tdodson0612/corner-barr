@@ -1087,7 +1087,8 @@ function showLoggedOutView() {
 const SHIPPING_STATUS_LABELS = {
     processing: "Processing",
     shipped: "Shipped",
-    delivered: "Delivered"
+    delivered: "Delivered",
+    canceled: "Canceled"
 };
 
 
@@ -1217,6 +1218,10 @@ function renderMyOrders(orders) {
             shipDateInfo = `<div class="order-card-shipping">Expected to ship: ${shipBy}</div>`;
         }
 
+        const refundInfo = Number(order.refunded_amount) > 0
+            ? `<div class="order-card-shipping">Refunded: ${money(Number(order.refunded_amount))}</div>`
+            : "";
+
         return `
             <div class="order-card" data-order-row="${order.id}">
                 <div class="order-card-top">
@@ -1226,6 +1231,7 @@ function renderMyOrders(orders) {
                 <div class="order-card-items">${itemsSummary}</div>
                 ${shipDateInfo}
                 ${shippingInfo}
+                ${refundInfo}
                 <div class="order-card-total">${money(Number(order.subtotal))}</div>
             </div>
         `;
@@ -2283,6 +2289,7 @@ function renderAdminOrdersList(orders) {
                         <option value="processing" ${order.shipping_status === "processing" ? "selected" : ""}>Processing</option>
                         <option value="shipped" ${order.shipping_status === "shipped" ? "selected" : ""}>Shipped</option>
                         <option value="delivered" ${order.shipping_status === "delivered" ? "selected" : ""}>Delivered</option>
+                        <option value="canceled" ${order.shipping_status === "canceled" ? "selected" : ""}>Canceled</option>
                     </select>
                 </div>
 
@@ -2309,13 +2316,120 @@ function renderAdminOrdersList(orders) {
                 <button type="button" class="admin-order-save" data-order-id="${order.id}">Save</button>
 
             </div>
+
+            <div class="admin-order-refund">
+
+                ${Number(order.refunded_amount) > 0
+                    ? `<div class="admin-order-refunded-note">Refunded so far: ${money(Number(order.refunded_amount))}</div>`
+                    : ""}
+
+                <div class="admin-order-refund-row">
+
+                    <label>Refund amount</label>
+
+                    <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        class="admin-refund-amount-input"
+                        placeholder="0.00"
+                    >
+
+                    <button type="button" class="admin-refund-preset" data-refund-percent="25">25%</button>
+                    <button type="button" class="admin-refund-preset" data-refund-percent="50">50%</button>
+                    <button type="button" class="admin-refund-preset" data-refund-percent="100">100%</button>
+
+                    <button type="button" class="admin-order-save admin-refund-submit" data-order-id="${order.id}">
+                        Issue Refund
+                    </button>
+
+                </div>
+
+            </div>
         `;
 
         adminOrdersList.appendChild(row);
 
-        row.querySelector(".admin-order-save").addEventListener("click", () => saveOrderShipping(order.id, row));
+        row.querySelector(".admin-order-save:not(.admin-refund-submit)").addEventListener("click", () => saveOrderShipping(order.id, row));
+
+        wireAdminOrderRefundControls(row, order);
 
     });
+
+}
+
+
+function wireAdminOrderRefundControls(row, order) {
+
+    const totalCharged = Number(order.subtotal) + Number(order.shipping_cost || 0);
+    const alreadyRefunded = Number(order.refunded_amount || 0);
+    const remaining = Math.max(0, Math.round((totalCharged - alreadyRefunded) * 100) / 100);
+
+    const amountInput = row.querySelector(".admin-refund-amount-input");
+    amountInput.max = remaining;
+
+    if (remaining <= 0) {
+        row.querySelector(".admin-order-refund-row").innerHTML = `<p class="checkout-note">This order has already been fully refunded.</p>`;
+        return;
+    }
+
+    row.querySelectorAll("[data-refund-percent]").forEach(button => {
+        button.addEventListener("click", () => {
+            const percent = Number(button.dataset.refundPercent);
+            const calculated = Math.round(remaining * (percent / 100) * 100) / 100;
+            amountInput.value = calculated.toFixed(2);
+        });
+    });
+
+    row.querySelector(".admin-refund-submit").addEventListener("click", () => {
+        issueRefund(order.id, amountInput.value, row);
+    });
+
+}
+
+
+async function issueRefund(orderId, amountValue, row) {
+
+    clearAdminError();
+
+    const amount = Number(amountValue);
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+        showAdminError("Enter a valid refund amount greater than zero.");
+        return;
+    }
+
+    if (!confirm(`Refund ${money(amount)} to this customer through PayPal? This cannot be undone.`)) {
+        return;
+    }
+
+    const submitButton = row.querySelector(".admin-refund-submit");
+    submitButton.disabled = true;
+    submitButton.textContent = "Processing…";
+
+    try {
+
+        const response = await fetch(`/api/admin/orders/${orderId}/refund`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...authHeaders() },
+            body: JSON.stringify({ amount })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Could not process this refund.");
+        }
+
+        // Simplest reliable way to reflect the new refunded_amount
+        // everywhere it's shown — just reload the whole list fresh.
+        await loadAdminOrders();
+
+    } catch (err) {
+        showAdminError(err.message || "Could not process this refund.");
+        submitButton.disabled = false;
+        submitButton.textContent = "Issue Refund";
+    }
 
 }
 

@@ -9,7 +9,7 @@ const localOptions = require("./data/products.json");
 const vault = require("./data/vault");
 const { checkStockAvailability, decrementStockForOrder } = require("./data/inventory");
 const { hasUserPurchasedProduct, getMostRecentCustomerName, getProductReviewSummary } = require("./data/reviews");
-const { createNotification, notifyOrderStatusChange, notifyOrderReceived, notifyOwnerOfNewOrder, notifyWishlistersOfStockChange } = require("./data/notifications");
+const { createNotification, notifyOrderStatusChange, notifyOrderReceived, notifyOwnerOfNewOrder, notifyWishlistersOfStockChange, notifyCustomerOfRefund } = require("./data/notifications");
 const { getSimilarProducts, getRecommendationsForUser } = require("./data/recommendations");
 
 const app = express();
@@ -1325,7 +1325,7 @@ app.get("/api/admin/orders", requireOwner, async (req, res) => {
 
 });
 
-const ALLOWED_SHIPPING_STATUSES = ["processing", "shipped", "delivered"];
+const ALLOWED_SHIPPING_STATUSES = ["processing", "shipped", "delivered", "canceled"];
 
 app.put("/api/admin/orders/:id", requireOwner, async (req, res) => {
 
@@ -1381,6 +1381,122 @@ app.put("/api/admin/orders/:id", requireOwner, async (req, res) => {
     }
 
     res.json(data);
+
+});
+
+// Issues a real, partial-or-full refund on an order through PayPal — usable
+// on any order regardless of its status, since a goodwill refund doesn't
+// necessarily mean the order was canceled.
+app.post("/api/admin/orders/:id/refund", requireOwner, async (req, res) => {
+
+    try {
+
+        const { amount } = req.body;
+        const refundAmount = Number(amount);
+
+        if (!Number.isFinite(refundAmount) || refundAmount <= 0) {
+            return res.status(400).json({ error: "amount must be a positive number." });
+        }
+
+        const { data: order, error: lookupError } = await supabaseAdmin
+            .from("orders")
+            .select("*")
+            .eq("id", req.params.id)
+            .single();
+
+        if (lookupError || !order) {
+            return res.status(404).json({ error: "Order not found." });
+        }
+
+        const totalCharged = Number(order.subtotal) + Number(order.shipping_cost || 0);
+        const alreadyRefunded = Number(order.refunded_amount || 0);
+        const remaining = Math.round((totalCharged - alreadyRefunded) * 100) / 100;
+
+        if (refundAmount > remaining) {
+            return res.status(400).json({
+                error: `That's more than what's left to refund. $${remaining.toFixed(2)} remains refundable on this order.`
+            });
+        }
+
+        if (!order.paypal_order_id) {
+            return res.status(400).json({ error: "This order has no associated PayPal transaction to refund." });
+        }
+
+        const accessToken = await getPayPalAccessToken();
+
+        // Look up the capture fresh from PayPal rather than relying on
+        // anything stored locally — this works even for orders placed a
+        // long time ago, and always reflects PayPal's own current state.
+        const orderLookupResponse = await fetch(
+            `${PAYPAL_API_BASE}/v2/checkout/orders/${order.paypal_order_id}`,
+            { headers: { Authorization: `Bearer ${accessToken}` } }
+        );
+
+        const paypalOrder = await orderLookupResponse.json();
+
+        if (!orderLookupResponse.ok) {
+            console.error("Could not look up PayPal order for refund:", paypalOrder);
+            return res.status(502).json({ error: "Could not find this order's payment on PayPal." });
+        }
+
+        const captureId = extractCaptureId(paypalOrder);
+
+        if (!captureId) {
+            return res.status(400).json({ error: "Could not find a completed payment to refund on this order." });
+        }
+
+        const refundResponse = await fetch(
+            `${PAYPAL_API_BASE}/v2/payments/captures/${captureId}/refund`,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${accessToken}`
+                },
+                body: JSON.stringify({
+                    amount: {
+                        value: refundAmount.toFixed(2),
+                        currency_code: "USD"
+                    }
+                })
+            }
+        );
+
+        const refundResult = await refundResponse.json();
+
+        if (!refundResponse.ok) {
+            console.error("PayPal refund failed:", refundResult);
+            return res.status(502).json({ error: refundResult.message || "PayPal could not process this refund." });
+        }
+
+        const newRefundedTotal = Math.round((alreadyRefunded + refundAmount) * 100) / 100;
+
+        const { data: updatedOrder, error: updateError } = await supabaseAdmin
+            .from("orders")
+            .update({ refunded_amount: newRefundedTotal })
+            .eq("id", order.id)
+            .select()
+            .single();
+
+        if (updateError) {
+            console.error(
+                "CRITICAL — PayPal refund succeeded but recording it failed. Refund ID:",
+                refundResult.id, "Order:", order.id, updateError
+            );
+        }
+
+        await notifyCustomerOfRefund(order, refundAmount);
+
+        res.json({
+            refunded_amount: newRefundedTotal,
+            remaining_refundable: Math.round((totalCharged - newRefundedTotal) * 100) / 100,
+            paypal_refund_id: refundResult.id
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: err.message || "Could not process this refund." });
+    }
 
 });
 
