@@ -75,6 +75,41 @@ async function notifyOrderReceived(userId, orderId) {
 
 }
 
+/**
+ * Notifies the shop owner whenever ANY new order comes in — regardless of
+ * whether the customer was logged in. This is separate from
+ * notifyOrderReceived(), which notifies the customer.
+ */
+async function notifyOwnerOfNewOrder(order) {
+
+    const { data: owner, error } = await supabaseAdmin
+        .from("profiles")
+        .select("id")
+        .eq("role", "owner")
+        .limit(1)
+        .maybeSingle();
+
+    if (error || !owner) {
+        console.error("Could not find an owner to notify about a new order:", error);
+        return;
+    }
+
+    const itemCount = Array.isArray(order.items)
+        ? order.items.reduce((sum, item) => sum + (item.quantity || 1), 0)
+        : 0;
+
+    const customerLabel = order.customer_name || order.customer_email || "A customer";
+
+    await createNotification({
+        userId: owner.id,
+        type: "new_order",
+        title: `New order from ${customerLabel}`,
+        body: `${itemCount} item${itemCount === 1 ? "" : "s"} — $${Number(order.subtotal).toFixed(2)}`,
+        relatedOrderId: order.id
+    });
+
+}
+
 // Avoids re-notifying the same person about the same product/type more
 // than once a day — e.g. if the admin nudges stock up and down a few
 // times while restocking, wishlisters don't get spammed.
@@ -151,5 +186,6 @@ module.exports = {
     createNotification,
     notifyOrderStatusChange,
     notifyOrderReceived,
+    notifyOwnerOfNewOrder,
     notifyWishlistersOfStockChange
 };

@@ -9,7 +9,7 @@ const localOptions = require("./data/products.json");
 const vault = require("./data/vault");
 const { checkStockAvailability, decrementStockForOrder } = require("./data/inventory");
 const { hasUserPurchasedProduct, getMostRecentCustomerName, getProductReviewSummary } = require("./data/reviews");
-const { createNotification, notifyOrderStatusChange, notifyOrderReceived, notifyWishlistersOfStockChange } = require("./data/notifications");
+const { createNotification, notifyOrderStatusChange, notifyOrderReceived, notifyOwnerOfNewOrder, notifyWishlistersOfStockChange } = require("./data/notifications");
 const { getSimilarProducts, getRecommendationsForUser } = require("./data/recommendations");
 
 const app = express();
@@ -1088,8 +1088,8 @@ app.post("/api/orders", async (req, res) => {
                                 }
                             },
                             experience_context: {
-                                return_url: "https://example.com/return",
-                                cancel_url: "https://example.com/cancel"
+                                return_url: "https://cornerbarr.com/",
+                                cancel_url: "https://cornerbarr.com/"
                             }
                         }
                     }
@@ -1261,8 +1261,12 @@ app.post("/api/orders/:orderID/capture", async (req, res) => {
             // customer's checkout over a logging problem, just log it
             // loudly so it can be investigated.
             console.error("Could not save order record after successful payment:", insertError);
-        } else if (auth) {
-            await notifyOrderReceived(auth.user.id, insertedOrder.id);
+        } else {
+            if (auth) {
+                await notifyOrderReceived(auth.user.id, insertedOrder.id);
+            }
+            // The owner gets notified of every new order, guest or not.
+            await notifyOwnerOfNewOrder(insertedOrder);
         }
 
         // If this order asked PayPal to vault the payment source, record
@@ -1325,7 +1329,7 @@ const ALLOWED_SHIPPING_STATUSES = ["processing", "shipped", "delivered"];
 
 app.put("/api/admin/orders/:id", requireOwner, async (req, res) => {
 
-    const { shipping_status, carrier, tracking_number, estimated_delivery_date } = req.body;
+    const { shipping_status, carrier, tracking_number, estimated_delivery_date, expected_ship_date } = req.body;
 
     const clean = {};
 
@@ -1350,6 +1354,10 @@ app.put("/api/admin/orders/:id", requireOwner, async (req, res) => {
 
     if (estimated_delivery_date !== undefined) {
         clean.estimated_delivery_date = estimated_delivery_date || null;
+    }
+
+    if (expected_ship_date !== undefined) {
+        clean.expected_ship_date = expected_ship_date || null;
     }
 
     if (Object.keys(clean).length === 0) {

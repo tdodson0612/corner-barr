@@ -49,7 +49,7 @@ let adminTags;
 let siteSearchInput, siteSearchClear, siteSearchResults;
 
 let notificationBellButton, notificationBadge, notificationPanel,
-    notificationList, markAllNotificationsRead;
+    notificationList, markAllNotificationsRead, manageShopOrderBadge;
 
 
 // The customer's shopping cart. Populated from localStorage by loadCart()
@@ -159,6 +159,7 @@ function cacheSharedDom() {
     notificationPanel = document.getElementById("notificationPanel");
     notificationList = document.getElementById("notificationList");
     markAllNotificationsRead = document.getElementById("markAllNotificationsRead");
+    manageShopOrderBadge = document.getElementById("manageShopOrderBadge");
 
 }
 
@@ -1030,6 +1031,36 @@ async function handleAuthChange(session) {
 function updateOwnerUI() {
     manageShopButton.classList.toggle("hidden", currentRole !== "owner");
     updateNotificationUI();
+    updateManageShopOrderBadge();
+}
+
+
+async function updateManageShopOrderBadge() {
+
+    if (currentRole !== "owner" || !manageShopOrderBadge) {
+        return;
+    }
+
+    try {
+
+        const response = await fetch("/api/admin/orders", { headers: authHeaders() });
+        const orders = await response.json();
+
+        if (!response.ok) {
+            return;
+        }
+
+        // "Needs attention" count — orders still sitting in processing,
+        // not the lifetime total, since that wouldn't be actionable.
+        const processingCount = orders.filter(order => order.shipping_status === "processing").length;
+
+        manageShopOrderBadge.textContent = String(processingCount);
+        manageShopOrderBadge.classList.toggle("hidden", processingCount === 0);
+
+    } catch (err) {
+        console.error(err);
+    }
+
 }
 
 
@@ -1177,13 +1208,23 @@ function renderMyOrders(orders) {
 
         }
 
+        let shipDateInfo = "";
+
+        if (order.shipping_status === "processing" && order.expected_ship_date) {
+            const shipBy = new Date(order.expected_ship_date + "T00:00:00").toLocaleDateString("en-US", {
+                month: "short", day: "numeric"
+            });
+            shipDateInfo = `<div class="order-card-shipping">Expected to ship: ${shipBy}</div>`;
+        }
+
         return `
-            <div class="order-card">
+            <div class="order-card" data-order-row="${order.id}">
                 <div class="order-card-top">
                     <span class="order-card-date">${date}</span>
                     <span class="order-status-badge ${statusClass}">${statusLabel}</span>
                 </div>
                 <div class="order-card-items">${itemsSummary}</div>
+                ${shipDateInfo}
                 ${shippingInfo}
                 <div class="order-card-total">${money(Number(order.subtotal))}</div>
             </div>
@@ -2199,6 +2240,7 @@ function renderAdminOrdersList(orders) {
 
         const row = document.createElement("div");
         row.className = "admin-order-row";
+        row.dataset.orderRow = order.id;
 
         const addressLines = [
             order.customer_address1,
@@ -2210,6 +2252,14 @@ function renderAdminOrdersList(orders) {
             ? `<div class="admin-order-address">${addressLines.map(escapeHtml).join("<br>")}</div>`
             : `<div class="admin-order-address checkout-note">No shipping address on file.</div>`;
 
+        const phoneHtml = order.customer_phone
+            ? `<div class="admin-order-meta">Phone: ${escapeHtml(order.customer_phone)}</div>`
+            : "";
+
+        const notesHtml = order.customer_notes
+            ? `<div class="admin-order-meta">Notes: ${escapeHtml(order.customer_notes)}</div>`
+            : "";
+
         row.innerHTML = `
             <div class="admin-order-top">
                 <div>
@@ -2217,7 +2267,9 @@ function renderAdminOrdersList(orders) {
                     <div class="admin-order-meta">
                         ${escapeHtml(order.customer_email || "")} · ${date} · ${money(Number(order.subtotal))}
                     </div>
+                    ${phoneHtml}
                     ${addressHtml}
+                    ${notesHtml}
                 </div>
             </div>
 
@@ -2242,6 +2294,11 @@ function renderAdminOrdersList(orders) {
                 <div class="field-group">
                     <label>Tracking #</label>
                     <input type="text" data-field="tracking_number" value="${escapeHtml(order.tracking_number || "")}">
+                </div>
+
+                <div class="field-group">
+                    <label>Expected Ship Date</label>
+                    <input type="date" data-field="expected_ship_date" value="${order.expected_ship_date || ""}">
                 </div>
 
                 <div class="field-group">
@@ -2271,7 +2328,8 @@ async function saveOrderShipping(orderId, row) {
         shipping_status: row.querySelector('[data-field="shipping_status"]').value,
         carrier: row.querySelector('[data-field="carrier"]').value.trim(),
         tracking_number: row.querySelector('[data-field="tracking_number"]').value.trim(),
-        estimated_delivery_date: row.querySelector('[data-field="estimated_delivery_date"]').value || null
+        estimated_delivery_date: row.querySelector('[data-field="estimated_delivery_date"]').value || null,
+        expected_ship_date: row.querySelector('[data-field="expected_ship_date"]').value || null
     };
 
     try {
@@ -2287,6 +2345,10 @@ async function saveOrderShipping(orderId, row) {
         if (!response.ok) {
             throw new Error(data.error || "Could not save this order.");
         }
+
+        // Refresh right away rather than waiting for the next poll —
+        // this is the exact action that should change the count.
+        updateManageShopOrderBadge();
 
     } catch (err) {
         showAdminError(err.message || "Could not save this order.");
@@ -2830,23 +2892,32 @@ function formatNotificationTime(isoString) {
 
 function notificationRowMarkup(notification) {
 
-    let linkHref = null;
-
-    if (notification.related_order_id) {
-        linkHref = "#my-orders";
-    } else if (notification.related_product_id) {
-        linkHref = `product.html?id=${encodeURIComponent(notification.related_product_id)}`;
-    }
-
     const content = `
         <div class="notification-row-title">${escapeHtml(notification.title)}</div>
         ${notification.body ? `<div class="notification-row-body">${escapeHtml(notification.body)}</div>` : ""}
         <div class="notification-row-time">${formatNotificationTime(notification.created_at)}</div>
     `;
 
-    const inner = linkHref
-        ? `<a class="notification-row-link" data-notification-link="${notification.id}" href="${linkHref}">${content}</a>`
-        : content;
+    let inner = content;
+
+    if (notification.related_order_id) {
+        inner = `
+            <button
+                type="button"
+                class="notification-row-link"
+                data-order-notification="${notification.related_order_id}"
+                data-notification-link="${notification.id}"
+            >${content}</button>
+        `;
+    } else if (notification.related_product_id) {
+        inner = `
+            <a
+                class="notification-row-link"
+                data-notification-link="${notification.id}"
+                href="product.html?id=${encodeURIComponent(notification.related_product_id)}"
+            >${content}</a>
+        `;
+    }
 
     return `
         <div class="notification-row ${notification.is_read ? "" : "unread"}" data-notification-id="${notification.id}">
@@ -2880,6 +2951,58 @@ async function loadNotifications() {
 
 }
 
+
+/**
+ * Handles clicking an order-related notification. For the owner, this
+ * opens Manage Shop straight to the Orders tab — the same place she'd
+ * already go to look this order up herself — and scrolls to/highlights
+ * the exact row. For a customer, it opens their own order history the
+ * same way.
+ */
+async function goToOrderFromNotification(orderId, notificationId) {
+
+    markNotificationRead(notificationId);
+    notificationPanel.classList.remove("open");
+
+    if (currentRole === "owner") {
+
+        await openAdminModal();
+        switchAdminTab("orders");
+
+        // Give the orders fetch a moment to land and render before we
+        // try to find and scroll to the row.
+        setTimeout(() => highlightOrderRow(orderId, adminOrdersList), 600);
+
+    } else {
+
+        openAccountModal();
+
+        setTimeout(() => highlightOrderRow(orderId, myOrdersList), 600);
+
+    }
+
+}
+
+
+function highlightOrderRow(orderId, container) {
+
+    if (!container) {
+        return;
+    }
+
+    const row = container.querySelector(`[data-order-row="${orderId}"]`);
+
+    if (!row) {
+        return;
+    }
+
+    row.scrollIntoView({ behavior: "smooth", block: "center" });
+    row.classList.add("order-row-highlight");
+
+    setTimeout(() => row.classList.remove("order-row-highlight"), 2500);
+
+}
+
 function renderNotifications(notifications) {
 
     const unreadCount = notifications.filter(n => !n.is_read).length;
@@ -2894,7 +3017,13 @@ function renderNotifications(notifications) {
 
     notificationList.innerHTML = notifications.map(notificationRowMarkup).join("");
 
-    notificationList.querySelectorAll("[data-notification-link]").forEach(link => {
+    notificationList.querySelectorAll("[data-order-notification]").forEach(button => {
+        button.addEventListener("click", () => {
+            goToOrderFromNotification(button.dataset.orderNotification, button.dataset.notificationLink);
+        });
+    });
+
+    notificationList.querySelectorAll("a[data-notification-link]").forEach(link => {
         link.addEventListener("click", () => {
             markNotificationRead(link.dataset.notificationLink);
         });
@@ -2963,7 +3092,10 @@ function updateNotificationUI() {
         loadNotifications();
 
         if (!notificationPollTimer) {
-            notificationPollTimer = setInterval(loadNotifications, NOTIFICATION_POLL_INTERVAL_MS);
+            notificationPollTimer = setInterval(() => {
+                loadNotifications();
+                updateManageShopOrderBadge();
+            }, NOTIFICATION_POLL_INTERVAL_MS);
         }
 
     } else {
