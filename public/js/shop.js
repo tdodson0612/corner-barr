@@ -1,4 +1,4 @@
-// /corner-barr/js/shop.js
+// /corner-barr/public/js/shop.js
 //
 // Renders the 5 category grids on shop.html. Cards are clickable — like
 // Amazon's search results — and take the customer to product.html for
@@ -48,7 +48,13 @@ async function renderRecommendedForYou() {
         section = document.createElement("section");
         section.id = "recommendedForYouSection";
         section.className = "recommended-for-you-section hidden";
-        cuttingBoardGrid.insertAdjacentElement("beforebegin", section);
+
+        // Insert before the ENTIRE Cutting Boards section (heading,
+        // description, and grid together) — not just before the grid
+        // div itself, which would land this in between the heading and
+        // the products instead of cleanly above the whole thing.
+        const cuttingBoardsWrapper = cuttingBoardGrid.closest("section") || cuttingBoardGrid;
+        cuttingBoardsWrapper.insertAdjacentElement("beforebegin", section);
     }
 
     try {
