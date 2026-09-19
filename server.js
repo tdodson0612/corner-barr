@@ -283,7 +283,8 @@ function mapProductRow(row) {
         image_url: row.image_url || null,
         categoryKey: row.category,
         category: CATEGORY_LABELS[row.category] || row.category,
-        stock: Number.isFinite(Number(row.stock)) ? Number(row.stock) : 0
+        stock: Number.isFinite(Number(row.stock)) ? Number(row.stock) : 0,
+        variations: Array.isArray(row.variations) ? row.variations : []
     };
 
     if (row.category === "cutting_board") {
@@ -834,6 +835,69 @@ function validateProductInput(body, { partial = false } = {}) {
             .map(tag => tag.trim().toLowerCase())
             .filter(Boolean)
             .slice(0, 20);
+    }
+
+    if (body.variations !== undefined) {
+
+        if (!Array.isArray(body.variations)) {
+            errors.push("variations must be a list.");
+        } else {
+
+            const cleanVariations = [];
+
+            for (const typeGroup of body.variations) {
+
+                const type = typeof typeGroup?.type === "string" ? typeGroup.type.trim().substring(0, 60) : "";
+
+                if (!type) {
+                    errors.push("Each variation needs a type name (like Color or Size).");
+                    break;
+                }
+
+                if (!Array.isArray(typeGroup.options) || typeGroup.options.length === 0) {
+                    errors.push(`"${type}" needs at least one option.`);
+                    break;
+                }
+
+                const cleanOptions = [];
+
+                for (const option of typeGroup.options) {
+
+                    const value = typeof option?.value === "string" ? option.value.trim().substring(0, 60) : "";
+                    const price = Number(option?.price);
+                    const stock = Number(option?.stock);
+
+                    if (!value) {
+                        errors.push(`Every option under "${type}" needs a name (like Green or Large).`);
+                        break;
+                    }
+
+                    if (!Number.isFinite(price) || price < 0) {
+                        errors.push(`"${value}" under "${type}" needs a valid, non-negative price.`);
+                        break;
+                    }
+
+                    if (!Number.isInteger(stock) || stock < 0) {
+                        errors.push(`"${value}" under "${type}" needs a valid, non-negative stock count.`);
+                        break;
+                    }
+
+                    cleanOptions.push({
+                        value,
+                        price: Math.round(price * 100) / 100,
+                        stock
+                    });
+
+                }
+
+                cleanVariations.push({ type, options: cleanOptions });
+
+            }
+
+            clean.variations = cleanVariations;
+
+        }
+
     }
 
     if (!partial || body.image_url !== undefined) {

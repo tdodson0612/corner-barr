@@ -45,6 +45,7 @@ let adminShippingMethodsList, adminShippingMethodForm, adminShippingMethodId,
     adminCategoryThresholdsList;
 
 let adminTags;
+let adminVariationsContainer, addVariationTypeButton;
 
 let siteSearchInput, siteSearchClear, siteSearchResults;
 
@@ -126,6 +127,8 @@ function cacheSharedDom() {
     adminPrice = document.getElementById("adminPrice");
     adminStock = document.getElementById("adminStock");
     adminTags = document.getElementById("adminTags");
+    adminVariationsContainer = document.getElementById("adminVariationsContainer");
+    addVariationTypeButton = document.getElementById("addVariationTypeButton");
     adminDropZone = document.getElementById("adminDropZone");
     adminImagePreview = document.getElementById("adminImagePreview");
     adminDropZoneText = document.getElementById("adminDropZoneText");
@@ -1859,6 +1862,127 @@ function renderAdminProductList(products) {
 }
 
 
+/* =========================================
+   VARIATIONS BUILDER (e.g. Color, Size — each
+   option has its own full price and stock)
+========================================= */
+
+function createVariationOptionRow(option = {}) {
+
+    const row = document.createElement("div");
+    row.className = "variation-option-row";
+
+    row.innerHTML = `
+        <input type="text" class="variation-option-value" placeholder="e.g. Green" value="${option.value ? escapeHtml(option.value) : ""}">
+        <input type="number" step="0.01" min="0" class="variation-option-price" placeholder="Price" value="${option.price ?? ""}">
+        <input type="number" step="1" min="0" class="variation-option-stock" placeholder="Stock" value="${option.stock ?? ""}">
+        <button type="button" class="variation-remove-option" aria-label="Remove this option">×</button>
+    `;
+
+    row.querySelector(".variation-remove-option").addEventListener("click", () => row.remove());
+
+    return row;
+
+}
+
+
+function createVariationTypeBlock(typeGroup = {}) {
+
+    const block = document.createElement("div");
+    block.className = "variation-type-block";
+
+    block.innerHTML = `
+        <div class="variation-type-header">
+            <div class="form-group">
+                <label>Variation Type <span class="input-hint">(color, size, etc.)</span></label>
+                <input type="text" class="variation-type-input" placeholder="e.g. Color" value="${typeGroup.type ? escapeHtml(typeGroup.type) : ""}">
+            </div>
+            <button type="button" class="remove-item variation-remove-type">Remove This Type</button>
+        </div>
+
+        <label class="variation-options-label">Variation <span class="input-hint">(green, blue, large, small, etc.)</span></label>
+
+        <div class="variation-options-list"></div>
+
+        <button type="button" class="secondary-button variation-add-option">+ Add Option</button>
+    `;
+
+    const optionsList = block.querySelector(".variation-options-list");
+    const options = (typeGroup.options && typeGroup.options.length > 0) ? typeGroup.options : [{}];
+
+    options.forEach(option => {
+        optionsList.appendChild(createVariationOptionRow(option));
+    });
+
+    block.querySelector(".variation-remove-type").addEventListener("click", () => block.remove());
+
+    block.querySelector(".variation-add-option").addEventListener("click", () => {
+        optionsList.appendChild(createVariationOptionRow());
+    });
+
+    return block;
+
+}
+
+
+// Rebuilds the whole builder from scratch — used when opening the form
+// for editing (pre-filled) or resetting it (empty). Not used on every
+// keystroke, since the DOM itself holds the live values in between.
+function renderVariationsBuilder(variations) {
+
+    adminVariationsContainer.innerHTML = "";
+
+    (variations || []).forEach(typeGroup => {
+        adminVariationsContainer.appendChild(createVariationTypeBlock(typeGroup));
+    });
+
+}
+
+
+function addVariationTypeBlock() {
+    adminVariationsContainer.appendChild(createVariationTypeBlock());
+}
+
+
+// Reads the CURRENT values straight out of the form's inputs — this is
+// the actual source of truth at submit time, rather than trying to keep
+// a separate JS array perfectly in sync with every keystroke.
+function collectVariationsFromForm() {
+
+    const variations = [];
+
+    adminVariationsContainer.querySelectorAll(".variation-type-block").forEach(block => {
+
+        const type = block.querySelector(".variation-type-input").value.trim();
+        const options = [];
+
+        block.querySelectorAll(".variation-option-row").forEach(row => {
+
+            const value = row.querySelector(".variation-option-value").value.trim();
+            const price = row.querySelector(".variation-option-price").value;
+            const stock = row.querySelector(".variation-option-stock").value;
+
+            if (value) {
+                options.push({
+                    value,
+                    price: price === "" ? null : Number(price),
+                    stock: stock === "" ? 0 : Number(stock)
+                });
+            }
+
+        });
+
+        if (type && options.length > 0) {
+            variations.push({ type, options });
+        }
+
+    });
+
+    return variations;
+
+}
+
+
 function startEditingProduct(product) {
 
     editingProductId = product.id;
@@ -1872,6 +1996,7 @@ function startEditingProduct(product) {
     adminPrice.value = Number(product.price);
     adminStock.value = Number.isFinite(Number(product.stock)) ? Number(product.stock) : 0;
     adminTags.value = Array.isArray(product.tags) ? product.tags.join(", ") : "";
+    renderVariationsBuilder(product.variations || []);
 
     if (product.image_url) {
         adminImagePreview.src = product.image_url;
@@ -1910,6 +2035,8 @@ function resetAdminForm() {
     adminExtraPhotosLocked.classList.remove("hidden");
     adminExtraPhotosManager.classList.add("hidden");
     adminExtraPhotosList.innerHTML = "";
+
+    renderVariationsBuilder([]);
 
     adminFormTitle.textContent = "Add a New Listing";
     adminSaveButton.textContent = "Add Listing";
@@ -2106,6 +2233,7 @@ async function handleAdminProductSubmit(event) {
             price: Number(adminPrice.value),
             stock: Number(adminStock.value),
             tags: adminTags.value,
+            variations: collectVariationsFromForm(),
             image_url: imageUrl
         };
 
@@ -2823,6 +2951,7 @@ function wireSharedEventListeners() {
     
     adminProductForm.addEventListener("submit", handleAdminProductSubmit);
     adminCancelEdit.addEventListener("click", resetAdminForm);
+    addVariationTypeButton.addEventListener("click", addVariationTypeBlock);
     
     adminImageInput.addEventListener("change", event => {
         handleSelectedImageFile(event.target.files[0]);
