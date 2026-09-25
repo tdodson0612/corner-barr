@@ -2315,6 +2315,8 @@ app.post("/api/webhooks/paypal", async (req, res) => {
 
 });
 
+require("./data/labels")(app, { requireOwner, supabaseAdmin });
+
 app.listen(PORT, () => {
     console.log(`Corner Barr server running at http://localhost:${PORT}`);
     console.log(`PayPal mode: ${PAYPAL_MODE}`);

@@ -2446,6 +2446,7 @@ function renderAdminOrdersList(orders) {
             </div>
 
             <div class="admin-order-refund">
+                <p class="checkout-note admin-refund-help-note">Refunding does not cancel this order or stop it from shipping. The two are completely independent.</p>
 
                 ${Number(order.refunded_amount) > 0
                     ? `<div class="admin-order-refunded-note">Refunded so far: ${money(Number(order.refunded_amount))}</div>`
@@ -2481,6 +2482,7 @@ function renderAdminOrdersList(orders) {
         row.querySelector(".admin-order-save:not(.admin-refund-submit)").addEventListener("click", () => saveOrderShipping(order.id, row));
 
         wireAdminOrderRefundControls(row, order);
+        wireAdminOrderLabelControls(row, order);
 
     });
 
@@ -3481,6 +3483,208 @@ async function initShared() {
     const currentYearEl = document.getElementById("currentYear");
     if (currentYearEl) {
         currentYearEl.textContent = new Date().getFullYear();
+    }
+
+}
+
+/* =========================================
+   ADMIN — SHIPPING LABELS (owner only)
+   Talks to the routes in data/labels.js. Buying a label fills in the
+   order's carrier + tracking number, but never changes its status.
+========================================= */
+
+function wireAdminOrderLabelControls(row, order) {
+
+    const area = document.createElement("div");
+    area.className = "admin-order-refund admin-order-label";
+    row.appendChild(area);
+
+    if (order.shipping_status === "canceled") {
+        area.innerHTML = `<p class="checkout-note">This order is canceled, so no label is needed.</p>`;
+        return;
+    }
+
+    area.innerHTML = `
+        <div class="admin-order-refund-row">
+            <label>Shipping label</label>
+            <input type="number" min="0" step="1" class="admin-refund-amount-input" data-label-field="weight_lb" placeholder="lb">
+            <input type="number" min="0" step="0.1" class="admin-refund-amount-input" data-label-field="weight_oz" placeholder="oz">
+            <input type="number" min="0" step="0.1" class="admin-refund-amount-input" data-label-field="length" placeholder="Length in">
+            <input type="number" min="0" step="0.1" class="admin-refund-amount-input" data-label-field="width" placeholder="Width in">
+            <input type="number" min="0" step="0.1" class="admin-refund-amount-input" data-label-field="height" placeholder="Height in">
+            <button type="button" class="admin-order-save" data-label-get-rates>Get Label Prices</button>
+        </div>
+
+        <div data-label-saved></div>
+
+        <div data-label-rates></div>
+    `;
+
+    loadSavedLabels(order.id, area.querySelector("[data-label-saved]"));
+
+    area.querySelector("[data-label-get-rates]").addEventListener("click", () => getLabelRates(order, area));
+
+}
+
+
+async function loadSavedLabels(orderId, container) {
+
+    try {
+
+        const response = await fetch(`/api/admin/orders/${orderId}/labels`, { headers: authHeaders() });
+        const labels = await response.json();
+
+        if (!response.ok) {
+            throw new Error(labels.error || "Could not load labels.");
+        }
+
+        if (labels.length === 0) {
+            container.innerHTML = "";
+            return;
+        }
+
+        container.innerHTML = labels.map(label => {
+
+            const date = new Date(label.created_at).toLocaleDateString("en-US", {
+                month: "short", day: "numeric"
+            });
+
+            return `
+                <p class="checkout-note">
+                    Label bought ${date}: ${escapeHtml(label.carrier || "")} ${escapeHtml(label.service || "")}
+                    · ${money(Number(label.cost || 0))}
+                    · Tracking ${escapeHtml(label.tracking_number || "")}
+                </p>
+                <a class="admin-order-save" style="display:inline-block; text-decoration:none; margin:2px 0 10px;" href="${escapeHtml(label.label_url || "")}" target="_blank" rel="noopener noreferrer">Print Label</a>
+            `;
+
+        }).join("");
+
+    } catch (err) {
+        container.innerHTML = `<p class="checkout-note">Couldn't load this order's labels.</p>`;
+    }
+
+}
+
+
+async function getLabelRates(order, area) {
+
+    clearAdminError();
+
+    const field = name => area.querySelector(`[data-label-field="${name}"]`).value;
+
+    const payload = {
+        weight_lb: field("weight_lb") || 0,
+        weight_oz: field("weight_oz") || 0,
+        length: field("length"),
+        width: field("width"),
+        height: field("height")
+    };
+
+    const button = area.querySelector("[data-label-get-rates]");
+    const ratesContainer = area.querySelector("[data-label-rates]");
+
+    button.disabled = true;
+    button.textContent = "Getting prices…";
+    ratesContainer.innerHTML = "";
+
+    try {
+
+        const response = await fetch(`/api/admin/orders/${order.id}/label-rates`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...authHeaders() },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Could not get shipping prices.");
+        }
+
+        ratesContainer.innerHTML = `<p class="checkout-note">Tap a price to buy that label:</p>`;
+
+        data.rates.forEach(rate => {
+
+            const days = rate.estimated_days ? ` · about ${rate.estimated_days} day${rate.estimated_days === 1 ? "" : "s"}` : "";
+
+            const rateButton = document.createElement("button");
+            rateButton.type = "button";
+            rateButton.className = "admin-order-save";
+            rateButton.style.margin = "4px 6px 4px 0";
+            rateButton.textContent = `${rate.provider} ${rate.service} — ${money(Number(rate.amount))}${days}`;
+            rateButton.addEventListener("click", () => buyLabel(order, rate, area, false));
+
+            ratesContainer.appendChild(rateButton);
+
+        });
+
+    } catch (err) {
+        showAdminError(err.message || "Could not get shipping prices.");
+    } finally {
+        button.disabled = false;
+        button.textContent = "Get Label Prices";
+    }
+
+}
+
+
+async function buyLabel(order, rate, area, allowAnother) {
+
+    clearAdminError();
+
+    if (!allowAnother) {
+        const question = `Buy this ${rate.provider} ${rate.service} label for ${money(Number(rate.amount))}? The postage is charged to the Shippo account and can't be undone here.`;
+        if (!confirm(question)) {
+            return;
+        }
+    }
+
+    const rateButtons = area.querySelectorAll("[data-label-rates] button");
+    rateButtons.forEach(b => { b.disabled = true; });
+
+    try {
+
+        const response = await fetch(`/api/admin/orders/${order.id}/label`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...authHeaders() },
+            body: JSON.stringify({ rate_id: rate.rate_id, allow_another: allowAnother === true })
+        });
+
+        const data = await response.json();
+
+        if (response.status === 409 && data.code === "HAS_LABEL") {
+            rateButtons.forEach(b => { b.disabled = false; });
+            if (confirm("This order already has a label. Buy ANOTHER one anyway? Only do this if the first label was lost or wrong.")) {
+                await buyLabel(order, rate, area, true);
+            }
+            return;
+        }
+
+        if (!response.ok) {
+            throw new Error(data.error || "Could not buy this label.");
+        }
+
+        if (data.warnings && data.warnings.length > 0) {
+            // Something couldn't be saved, so keep the label link on
+            // screen instead of refreshing the list away from it.
+            area.querySelector("[data-label-rates]").innerHTML = `
+                <p class="checkout-note">
+                    <a href="${escapeHtml(data.label.label_url)}" target="_blank" rel="noopener noreferrer"><strong>Open label to print</strong></a>
+                    · Tracking ${escapeHtml(data.label.tracking_number)}
+                </p>
+            `;
+            showAdminError(data.warnings.join(" "));
+            return;
+        }
+
+        await loadAdminOrders();
+        highlightOrderRow(order.id, adminOrdersList);
+        alert("Label bought! Tap the \"Print Label\" button on the order to print it.");
+
+    } catch (err) {
+        showAdminError(err.message || "Could not buy this label.");
+        rateButtons.forEach(b => { b.disabled = false; });
     }
 
 }
