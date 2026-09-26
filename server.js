@@ -1324,7 +1324,10 @@ app.post("/api/orders/:orderID/capture", async (req, res) => {
             // Payment already succeeded at this point — don't fail the
             // customer's checkout over a logging problem, just log it
             // loudly so it can be investigated.
-            console.error("Could not save order record after successful payment:", insertError);
+            console.error(
+                "CRITICAL — payment succeeded but the order was NOT saved. Recreate it from PayPal order:",
+                orderID, "Customer email:", customer?.email || "(none)", insertError
+            );
         } else {
             if (auth) {
                 await notifyOrderReceived(auth.user.id, insertedOrder.id);
@@ -2213,7 +2216,7 @@ app.post("/api/orders/pay-with-saved", requireLogin, async (req, res) => {
             });
         }
 
-        const { data: insertedOrder } = await supabaseAdmin
+        const { data: insertedOrder, error: insertError } = await supabaseAdmin
             .from("orders")
             .insert({
                 user_id: req.auth.user.id,
@@ -2232,8 +2235,18 @@ app.post("/api/orders/pay-with-saved", requireLogin, async (req, res) => {
             .select()
             .single();
 
-        if (insertedOrder) {
+        if (insertError || !insertedOrder) {
+            // Payment already succeeded — don't fail the customer's
+            // checkout, but log loudly so the order can be recreated.
+            console.error(
+                "CRITICAL — payment succeeded (saved PayPal) but the order was NOT saved. Recreate it from PayPal order:",
+                order.id, "Customer email:", customer?.email || "(none)", insertError
+            );
+        } else {
             await notifyOrderReceived(req.auth.user.id, insertedOrder.id);
+            // The owner gets notified of every new order, including
+            // ones paid with a saved PayPal account.
+            await notifyOwnerOfNewOrder(insertedOrder);
         }
 
         res.json(capture);
@@ -2244,6 +2257,112 @@ app.post("/api/orders/pay-with-saved", requireLogin, async (req, res) => {
     }
 
 });
+
+/* =========================================
+   REFUND SYNC (from PayPal webhook)
+   When a refund happens directly on PayPal (not through the site's
+   "Issue Refund" button), this updates the order's refunded amount to
+   match PayPal. It ONLY changes refunded_amount — it never cancels the
+   order or touches its shipping status. It sets the total from PayPal's
+   own records (not by adding), so running it twice is harmless.
+========================================= */
+
+async function syncRefundsFromPayPal(refundResource) {
+
+    const accessToken = await getPayPalAccessToken();
+
+    // Find the PayPal order ID this refund belongs to.
+    let paypalOrderId = refundResource?.supplementary_data?.related_ids?.order_id || null;
+
+    if (!paypalOrderId) {
+
+        const captureLink = (refundResource?.links || []).find(link => link.rel === "up");
+
+        if (captureLink?.href && captureLink.href.startsWith(PAYPAL_API_BASE)) {
+
+            const captureResponse = await fetch(captureLink.href, {
+                headers: { Authorization: `Bearer ${accessToken}` }
+            });
+
+            const captureData = await captureResponse.json();
+
+            if (captureResponse.ok) {
+                paypalOrderId = captureData?.supplementary_data?.related_ids?.order_id || null;
+            }
+
+        }
+
+    }
+
+    if (!paypalOrderId) {
+        console.error("Refund webhook: could not tell which PayPal order this refund belongs to.", refundResource?.id);
+        return;
+    }
+
+    const { data: order, error: lookupError } = await supabaseAdmin
+        .from("orders")
+        .select("*")
+        .eq("paypal_order_id", paypalOrderId)
+        .maybeSingle();
+
+    if (lookupError) {
+        console.error("Refund webhook: could not look up order", paypalOrderId, lookupError);
+        return;
+    }
+
+    if (!order) {
+        console.warn("Refund webhook: no order on the site matches PayPal order", paypalOrderId);
+        return;
+    }
+
+    // Ask PayPal for the full, current list of refunds on this order.
+    const orderResponse = await fetch(`${PAYPAL_API_BASE}/v2/checkout/orders/${paypalOrderId}`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+    });
+
+    const paypalOrder = await orderResponse.json();
+
+    if (!orderResponse.ok) {
+        console.error("Refund webhook: could not load PayPal order", paypalOrderId, paypalOrder);
+        return;
+    }
+
+    const refunds = (paypalOrder.purchase_units || [])
+        .flatMap(unit => unit?.payments?.refunds || []);
+
+    if (refunds.length === 0) {
+        console.warn("Refund webhook: PayPal shows no refunds yet for order", paypalOrderId);
+        return;
+    }
+
+    const paypalRefundedTotal = Math.round(
+        refunds
+            .filter(refund => refund.status === "COMPLETED" || refund.status === "PENDING")
+            .reduce((sum, refund) => sum + Number(refund?.amount?.value || 0), 0) * 100
+    ) / 100;
+
+    const alreadyRecorded = Math.round(Number(order.refunded_amount || 0) * 100) / 100;
+
+    // Nothing new (e.g. this refund was made with the site's own button).
+    if (paypalRefundedTotal <= alreadyRecorded) {
+        return;
+    }
+
+    const { error: updateError } = await supabaseAdmin
+        .from("orders")
+        .update({ refunded_amount: paypalRefundedTotal })
+        .eq("id", order.id);
+
+    if (updateError) {
+        console.error("Refund webhook: could not save refunded amount for order", order.id, updateError);
+        return;
+    }
+
+    await notifyCustomerOfRefund(order, paypalRefundedTotal - alreadyRecorded);
+
+    console.log(`Refund synced from PayPal: order ${order.id} now shows $${paypalRefundedTotal.toFixed(2)} refunded.`);
+
+}
 
 /* =========================================
    PAYPAL WEBHOOK
@@ -2275,6 +2394,26 @@ app.post("/api/webhooks/paypal", async (req, res) => {
         if (!isValid) {
             console.warn("Rejected a PayPal webhook with an invalid signature.");
             return res.status(400).send();
+        }
+
+        if (req.body.event_type === "PAYMENT.CAPTURE.REFUNDED") {
+
+            // Answer PayPal right away, then sync a little later. The wait
+            // lets the site's own "Issue Refund" button finish saving
+            // first, so a refund made on the site is never counted twice
+            // and the customer never gets two refund notifications.
+            res.status(200).send();
+
+            const resource = req.body.resource;
+
+            setTimeout(() => {
+                syncRefundsFromPayPal(resource).catch(err => {
+                    console.error("Refund sync from PayPal failed:", err);
+                });
+            }, 15000);
+
+            return;
+
         }
 
         if (req.body.event_type === "VAULT.PAYMENT-TOKEN.CREATED") {

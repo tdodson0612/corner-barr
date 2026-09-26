@@ -4494,3 +4494,17 @@ textarea:focus {
 .admin-shipping-method-form .input-help {
     color: var(--muted);
 }
+
+/* Manage Shop: bigger window, one scroll bar for the orders list */
+#adminModal .admin-modal {
+    width: min(1150px, 94vw);
+    max-width: 94vw;
+    max-height: 92vh;
+    overflow-y: auto;
+}
+
+#adminModal #adminOrdersList,
+#adminModal .admin-orders-section {
+    max-height: none;
+    overflow: visible;
+}

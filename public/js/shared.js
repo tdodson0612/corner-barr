@@ -3602,21 +3602,39 @@ async function getLabelRates(order, area) {
             throw new Error(data.error || "Could not get shipping prices.");
         }
 
-        ratesContainer.innerHTML = `<p class="checkout-note">Tap a price to buy that label:</p>`;
+        ratesContainer.innerHTML = `
+            <div class="admin-order-refund-row">
+                <select data-label-rate-select style="flex:1; min-width:260px; padding:10px; font:inherit; border:1px solid #ccc; background:#fff;">
+                    <option value="">Choose a shipping option…</option>
+                </select>
+                <button type="button" class="admin-order-save" data-label-buy disabled>Buy Label</button>
+            </div>
+        `;
 
-        data.rates.forEach(rate => {
+        const select = ratesContainer.querySelector("[data-label-rate-select]");
+        const buyButton = ratesContainer.querySelector("[data-label-buy]");
+
+        data.rates.forEach((rate, index) => {
 
             const days = rate.estimated_days ? ` · about ${rate.estimated_days} day${rate.estimated_days === 1 ? "" : "s"}` : "";
 
-            const rateButton = document.createElement("button");
-            rateButton.type = "button";
-            rateButton.className = "admin-order-save";
-            rateButton.style.margin = "4px 6px 4px 0";
-            rateButton.textContent = `${rate.provider} ${rate.service} — ${money(Number(rate.amount))}${days}`;
-            rateButton.addEventListener("click", () => buyLabel(order, rate, area, false));
+            const option = document.createElement("option");
+            option.value = String(index);
+            option.textContent = `${rate.provider} ${rate.service} — ${money(Number(rate.amount))}${days}`;
 
-            ratesContainer.appendChild(rateButton);
+            select.appendChild(option);
 
+        });
+
+        select.addEventListener("change", () => {
+            buyButton.disabled = select.value === "";
+        });
+
+        buyButton.addEventListener("click", () => {
+            const rate = data.rates[Number(select.value)];
+            if (rate) {
+                buyLabel(order, rate, area, false);
+            }
         });
 
     } catch (err) {
@@ -3640,7 +3658,7 @@ async function buyLabel(order, rate, area, allowAnother) {
         }
     }
 
-    const rateButtons = area.querySelectorAll("[data-label-rates] button");
+    const rateButtons = area.querySelectorAll("[data-label-rates] button, [data-label-rates] select");
     rateButtons.forEach(b => { b.disabled = true; });
 
     try {
