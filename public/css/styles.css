@@ -4564,3 +4564,11 @@ textarea:focus {
     min-width: 0;
     max-width: none !important;
 }
+
+
+/* Shop category menu: one column per category on desktop (set by shop.js) */
+@media (min-width: 851px) {
+    .shop-category-nav {
+        grid-template-columns: repeat(var(--shop-category-count, 5), 1fr);
+    }
+}

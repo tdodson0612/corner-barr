@@ -164,6 +164,10 @@ function renderShopCollections() {
     // Only categories that have products are shown to customers.
     const visible = shopCategories.filter(c => Array.isArray(c.products) && c.products.length > 0);
 
+    // Size the category menu to fit (up to 6 across; more wrap to a
+    // second row). Phones and tablets keep their own layout.
+    shopCategoryNav.style.setProperty("--shop-category-count", String(Math.min(Math.max(visible.length, 1), 6)));
+
     shopCategoryNav.innerHTML = visible.map((category, index) => `
         <a href="#${escapeHtml(category.anchor)}" class="shop-category-link">
             <span>${collectionNumber(index)}</span>
