@@ -798,10 +798,31 @@ function renderPayPalButtons() {
 }
 
 
+// The "CHECKOUT / Almost there." heading above the form. Hidden once the
+// order is confirmed, so it doesn't sit above "Thank you!".
+function setCheckoutHeaderVisible(visible) {
+    const modal = checkoutFormFields ? checkoutFormFields.closest(".checkout-modal") : null;
+    if (!modal) {
+        return;
+    }
+    Array.from(modal.children).forEach(child => {
+        if (child === checkoutFormFields) {
+            return;
+        }
+        const isHeader = child.matches(".eyebrow, h2, .checkout-note")
+            && child.compareDocumentPosition(checkoutFormFields) & Node.DOCUMENT_POSITION_FOLLOWING;
+        if (isHeader) {
+            child.style.display = visible ? "" : "none";
+        }
+    });
+}
+
+
 function showOrderConfirmation(details) {
 
     checkoutFormFields.style.display = "none";
     paypalButtonContainer.style.display = "none";
+    setCheckoutHeaderVisible(false);
 
     const payerName =
         details && details.payer && details.payer.name
@@ -825,6 +846,7 @@ function showOrderConfirmation(details) {
 function resetCheckoutModal() {
 
     checkoutFormFields.style.display = "";
+    setCheckoutHeaderVisible(true);
     paypalButtonContainer.style.display = "";
     orderConfirmation.style.display = "none";
     orderConfirmation.innerHTML = "";
