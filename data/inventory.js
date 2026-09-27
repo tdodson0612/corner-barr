@@ -1,5 +1,16 @@
 const { supabaseAdmin } = require("./supabase");
 
+// A product's options (like Size), if it has any. One option type per
+// product; each option has its own price and its own stock count.
+function getProductOptions(product) {
+    const first = Array.isArray(product?.variations) ? product.variations[0] : null;
+    return first && Array.isArray(first.options) && first.options.length > 0 ? first : null;
+}
+
+function itemKey(productId, variationValue) {
+    return `${productId}::${variationValue || ""}`;
+}
+
 /**
  * Best-effort, NON-atomic pre-check of whether a cart's requested
  * quantities are covered by current stock. Used right when the customer
@@ -11,13 +22,15 @@ const { supabaseAdmin } = require("./supabase");
 async function checkStockAvailability(cart) {
 
     const requestedByProduct = new Map();
+    const requestedByOption = new Map();
 
     for (const item of cart) {
         const quantity = Number(item.quantity) || 0;
-        requestedByProduct.set(
-            item.productId,
-            (requestedByProduct.get(item.productId) || 0) + quantity
-        );
+        requestedByProduct.set(item.productId, (requestedByProduct.get(item.productId) || 0) + quantity);
+        if (item.variationValue) {
+            const key = itemKey(item.productId, item.variationValue);
+            requestedByOption.set(key, (requestedByOption.get(key) || 0) + quantity);
+        }
     }
 
     const productIds = [...requestedByProduct.keys()];
@@ -28,7 +41,7 @@ async function checkStockAvailability(cart) {
 
     const { data, error } = await supabaseAdmin
         .from("products")
-        .select("id, name, stock")
+        .select("id, name, stock, variations")
         .in("id", productIds);
 
     if (error) {
@@ -44,12 +57,25 @@ async function checkStockAvailability(cart) {
         const available = Number(product.stock);
 
         if (requested > available) {
-            issues.push({
-                productId: product.id,
-                name: product.name,
-                requested,
-                available
-            });
+            issues.push({ productId: product.id, name: product.name, requested, available });
+            continue;
+        }
+
+        const options = getProductOptions(product);
+
+        if (options) {
+            for (const option of options.options) {
+                const wanted = requestedByOption.get(itemKey(product.id, option.value)) || 0;
+                const optionStock = Number(option.stock) || 0;
+                if (wanted > optionStock) {
+                    issues.push({
+                        productId: product.id,
+                        name: `${product.name} (${option.value})`,
+                        requested: wanted,
+                        available: optionStock
+                    });
+                }
+            }
         }
 
     }
@@ -60,10 +86,11 @@ async function checkStockAvailability(cart) {
 
 /**
  * Atomically decrements stock for every line item in an order, all in a
- * single database transaction (via the decrement_products_stock Postgres
- * function defined in inventory-migration.sql). Either every line
- * succeeds or none do — this is what actually prevents overselling the
- * last unit when two customers check out at nearly the same moment.
+ * single database transaction (via the decrement_stock_for_order Postgres
+ * function). Either every line succeeds or none do — this is what
+ * prevents overselling the last unit when two customers check out at
+ * nearly the same moment. Lines with a chosen option (like Size: Large)
+ * also decrement that option's own stock.
  *
  * Throws if any item doesn't have enough stock left. The caller is
  * responsible for refunding the payment if this throws AFTER a
@@ -71,23 +98,25 @@ async function checkStockAvailability(cart) {
  */
 async function decrementStockForOrder(lines) {
 
-    // Combine quantities for the same product (e.g. two cart lines that
-    // happen to reference the same product) before sending to Postgres.
     const combined = new Map();
 
     for (const line of lines) {
-        combined.set(
-            line.productId,
-            (combined.get(line.productId) || 0) + line.quantity
-        );
+        const key = itemKey(line.productId, line.variationValue);
+        const existing = combined.get(key);
+        if (existing) {
+            existing.quantity += line.quantity;
+        } else {
+            combined.set(key, {
+                product_id: line.productId,
+                quantity: line.quantity,
+                variation_value: line.variationValue || null
+            });
+        }
     }
 
-    const items = [...combined.entries()].map(([product_id, quantity]) => ({
-        product_id,
-        quantity
-    }));
+    const items = [...combined.values()];
 
-    const { error } = await supabaseAdmin.rpc("decrement_products_stock", { items });
+    const { error } = await supabaseAdmin.rpc("decrement_stock_for_order", { items });
 
     if (error) {
         console.error("Stock decrement failed:", error);
@@ -96,4 +125,4 @@ async function decrementStockForOrder(lines) {
 
 }
 
-module.exports = { checkStockAvailability, decrementStockForOrder };
+module.exports = { checkStockAvailability, decrementStockForOrder, getProductOptions };

@@ -43,6 +43,37 @@ let selectedEngravingStyleId = null;
 let engravingPhotoPath = null;
 let engravingPhotoUploading = false;
 
+// Product options (like Size). One option type per product; each option
+// has its own full price and its own stock count.
+let selectedOptionValue = null;
+
+function getProductOptions() {
+    const first = Array.isArray(currentProduct?.variations) ? currentProduct.variations[0] : null;
+    return first && Array.isArray(first.options) && first.options.length > 0 ? first : null;
+}
+
+function getSelectedOption() {
+    const options = getProductOptions();
+    return options ? options.options.find(o => o.value === selectedOptionValue) || null : null;
+}
+
+// The price before engraving extras: the chosen option's price, or the
+// product's own price if it has no options.
+function getBasePrice() {
+    const option = getSelectedOption();
+    return option ? Number(option.price) : currentProduct.price;
+}
+
+// Stock for what's currently selected.
+function getEffectiveStock() {
+    const options = getProductOptions();
+    if (!options) {
+        return currentProduct.stock;
+    }
+    const option = getSelectedOption();
+    return option ? Number(option.stock) || 0 : currentProduct.stock;
+}
+
 
 function getProductIdFromUrl() {
     const params = new URLSearchParams(window.location.search);
@@ -108,6 +139,7 @@ function renderProduct() {
         renderStyleOptions();
     }
 
+    renderOptionPicker();
     renderPhotoEngravingSection();
 
     updatePriceDisplay();
@@ -130,7 +162,7 @@ function renderStockStatus() {
         defaultAddToCartLabel = productAddToCartButton.textContent;
     }
 
-    const status = getStockStatus(currentProduct.stock);
+    const status = getStockStatus(getEffectiveStock());
 
     // No matching element exists in product.html yet, so create one once
     // and reuse it on subsequent renders rather than duplicating it.
@@ -327,16 +359,35 @@ function getPhotoEngravingExtra() {
 
 
 function updatePriceDisplay() {
-    const total = currentProduct.price + getSelectedStyleExtra() + getPhotoEngravingExtra();
+    const total = getBasePrice() + getSelectedStyleExtra() + getPhotoEngravingExtra();
     productDetailPrice.textContent = money(total);
 }
 
 
 function handleAddToCart() {
 
-    if (!currentProduct || currentProduct.stock <= 0) {
+    if (!currentProduct || getEffectiveStock() <= 0) {
         return;
     }
+
+    const productOptions = getProductOptions();
+    const selectedOption = getSelectedOption();
+
+    if (productOptions && !selectedOption) {
+        const errorEl = document.getElementById("productOptionError");
+        if (errorEl) {
+            errorEl.textContent = `Please choose a ${productOptions.type.toLowerCase()}.`;
+        }
+        return;
+    }
+
+    const optionFields = selectedOption
+        ? { variationType: productOptions.type, variationValue: selectedOption.value }
+        : {};
+
+    const displayName = selectedOption
+        ? `${currentProduct.name} (${selectedOption.value})`
+        : currentProduct.name;
 
     if (engravingPhotoUploading) {
         alert("Your photo is still uploading. Please wait a moment and try again.");
@@ -358,8 +409,9 @@ function handleAddToCart() {
             productId: currentProduct.id,
             category: "custom",
             engravingStyleId: selectedEngravingStyleId,
-            name: currentProduct.name,
-            price: currentProduct.price + getSelectedStyleExtra() + getPhotoEngravingExtra(),
+            name: displayName,
+            ...optionFields,
+            price: getBasePrice() + getSelectedStyleExtra() + getPhotoEngravingExtra(),
             quantity: 1,
             engraving: engravingTextInput.value.trim(),
             style: style ? style.name : "",
@@ -368,7 +420,7 @@ function handleAddToCart() {
             // A UX-only hint so the cart drawer can warn before the
             // customer tries to raise the quantity past what's available.
             // The server re-checks the real number regardless at checkout.
-            availableStock: currentProduct.stock
+            availableStock: getEffectiveStock()
         };
 
     } else {
@@ -379,14 +431,15 @@ function handleAddToCart() {
             id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
             productId: currentProduct.id,
             category: cartCategory,
-            name: currentProduct.name,
-            price: currentProduct.price + getPhotoEngravingExtra(),
+            name: displayName,
+            ...optionFields,
+            price: getBasePrice() + getPhotoEngravingExtra(),
             quantity: 1,
             engraving: "",
             style: "",
             giftMessage,
             engravingPhotoPath: photoPath,
-            availableStock: currentProduct.stock
+            availableStock: getEffectiveStock()
         };
 
     }
@@ -751,6 +804,67 @@ async function loadAndRenderSimilarProducts() {
 
 
 /* =========================================
+   PRODUCT OPTIONS (like Size)
+========================================= */
+
+function renderOptionPicker() {
+
+    const existing = document.getElementById("productOptionSection");
+    if (existing) {
+        existing.remove();
+    }
+
+    const options = getProductOptions();
+    if (!options) {
+        return;
+    }
+
+    // Pick the first in-stock option to start, so the price shown is real.
+    const firstInStock = options.options.find(o => Number(o.stock) > 0);
+    selectedOptionValue = firstInStock ? firstInStock.value : null;
+
+    const section = document.createElement("div");
+    section.id = "productOptionSection";
+    section.className = "form-group";
+    section.innerHTML = `
+        <label>${escapeHtml(options.type)}</label>
+        <div class="style-options" id="productOptionButtons"></div>
+        <div id="productOptionError" class="checkout-error"></div>
+    `;
+
+    productDetailPrice.parentNode.insertBefore(section, productDetailPrice);
+
+    const buttons = section.querySelector("#productOptionButtons");
+
+    options.options.forEach(option => {
+
+        const soldOut = Number(option.stock) <= 0;
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `style-option ${option.value === selectedOptionValue ? "active" : ""}`;
+        button.disabled = soldOut;
+        button.textContent = soldOut
+            ? `${option.value} (sold out)`
+            : `${option.value} · ${money(Number(option.price))}`;
+
+        button.addEventListener("click", () => {
+            selectedOptionValue = option.value;
+            buttons.querySelectorAll(".style-option").forEach(b => b.classList.remove("active"));
+            button.classList.add("active");
+            section.querySelector("#productOptionError").textContent = "";
+            updatePriceDisplay();
+            renderStockStatus();
+        });
+
+        buttons.appendChild(button);
+
+    });
+
+}
+
+
+/* =========================================
    PHOTO ENGRAVING
 ========================================= */
 
@@ -874,7 +988,7 @@ async function uploadEngravingPhoto(file) {
     } finally {
         engravingPhotoUploading = false;
         text.textContent = "Add a photo of a loved one, a pet, a favorite place, or anything you'd like engraved";
-        productAddToCartButton.disabled = currentProduct.stock <= 0;
+        productAddToCartButton.disabled = getEffectiveStock() <= 0;
         updatePriceDisplay();
     }
 

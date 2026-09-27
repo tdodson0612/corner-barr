@@ -897,7 +897,17 @@ function validateProductInput(body, { partial = false } = {}) {
 
             }
 
+            if (cleanVariations.length > 1) {
+                errors.push("Each product can have only one option type (like Size). Remove the extra one.");
+            }
+
             clean.variations = cleanVariations;
+
+            // With options, the product's total stock is the sum of its
+            // options' stock, so the shop's "in stock" badges stay right.
+            if (cleanVariations.length > 0) {
+                clean.stock = cleanVariations[0].options.reduce((sum, option) => sum + option.stock, 0);
+            }
 
         }
 

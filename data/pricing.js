@@ -1,5 +1,6 @@
 const { engravingStyles } = require("./products.json");
 const { supabaseAdmin } = require("./supabase");
+const { getProductOptions } = require("./inventory");
 
 // Maps the category a cart item is tagged with (from the browser) to the
 // category value stored in the database.
@@ -42,6 +43,24 @@ function priceForItem(item, dbProduct) {
     }
 
     let price = Number(dbProduct.price);
+
+    // Products with options (like Size): the customer must pick one, and
+    // that option's own full price replaces the base price.
+    const options = getProductOptions(dbProduct);
+
+    if (options) {
+
+        const chosen = options.options.find(o => o.value === item.variationValue);
+
+        if (!chosen) {
+            throw new Error(`Please choose a ${options.type} for ${dbProduct.name}. Remove it from your cart and add it again.`);
+        }
+
+        price = Number(chosen.price);
+
+    } else if (item.variationValue) {
+        throw new Error(`${dbProduct.name} no longer has that option. Remove it from your cart and add it again.`);
+    }
 
     if (item.category === "custom") {
 
@@ -89,7 +108,7 @@ async function priceCart(cart) {
 
     const { data: dbProducts, error } = await supabaseAdmin
         .from("products")
-        .select("id, category, name, price, allow_photo_engraving, photo_engraving_price")
+        .select("id, category, name, price, variations, allow_photo_engraving, photo_engraving_price")
         .in("id", productIds);
 
     if (error) {
@@ -120,9 +139,15 @@ async function priceCart(cart) {
         const dbCategory = CART_CATEGORY_TO_DB_CATEGORY[item.category];
         categoryTotals[dbCategory] = (categoryTotals[dbCategory] || 0) + lineTotal;
 
+        const lineOptions = getProductOptions(dbProduct);
+
         const line = {
             productId: item.productId,
-            name: item.name || dbProduct.name,
+            // Name comes from the database (not the browser), plus the
+            // chosen option, e.g. "Lavender Soap (Large)".
+            name: lineOptions && item.variationValue
+                ? `${dbProduct.name} (${item.variationValue})`
+                : dbProduct.name,
             quantity,
             unitPrice,
             lineTotal
@@ -144,6 +169,11 @@ async function priceCart(cart) {
 
         if (item.engravingPhotoPath) {
             line.engravingPhotoPath = String(item.engravingPhotoPath);
+        }
+
+        if (lineOptions && item.variationValue) {
+            line.variationType = lineOptions.type;
+            line.variationValue = item.variationValue;
         }
 
         lines.push(line);

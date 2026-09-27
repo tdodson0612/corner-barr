@@ -243,6 +243,17 @@ function saveCart() {
 
 function addStandardProductToCart(product, category) {
 
+    // Products with options (like Size) must be chosen on their own page.
+    const hasOptions = Array.isArray(product.variations)
+        && product.variations[0]
+        && Array.isArray(product.variations[0].options)
+        && product.variations[0].options.length > 0;
+
+    if (hasOptions) {
+        window.location.href = `product.html?id=${encodeURIComponent(product.id)}`;
+        return;
+    }
+
     const item = {
 
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -1924,7 +1935,10 @@ function createVariationTypeBlock(typeGroup = {}) {
         optionsList.appendChild(createVariationOptionRow(option));
     });
 
-    block.querySelector(".variation-remove-type").addEventListener("click", () => block.remove());
+    block.querySelector(".variation-remove-type").addEventListener("click", () => {
+        block.remove();
+        updateAddVariationTypeButton();
+    });
 
     block.querySelector(".variation-add-option").addEventListener("click", () => {
         optionsList.appendChild(createVariationOptionRow());
@@ -1946,11 +1960,25 @@ function renderVariationsBuilder(variations) {
         adminVariationsContainer.appendChild(createVariationTypeBlock(typeGroup));
     });
 
+    updateAddVariationTypeButton();
+
 }
 
 
 function addVariationTypeBlock() {
     adminVariationsContainer.appendChild(createVariationTypeBlock());
+    updateAddVariationTypeButton();
+}
+
+
+// One option type per product (like Size), so hide "+ Add Variation
+// Type" once there is one.
+function updateAddVariationTypeButton() {
+    if (!addVariationTypeButton) {
+        return;
+    }
+    const count = adminVariationsContainer.querySelectorAll(".variation-type-block").length;
+    addVariationTypeButton.classList.toggle("hidden", count >= 1);
 }
 
 
