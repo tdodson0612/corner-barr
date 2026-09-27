@@ -9,7 +9,8 @@ const CATEGORY_KEY_TO_CART_CATEGORY = {
     soap_candle: "soap",
     holiday: "holiday",
     resin_craft: "resin",
-    jewelry: "jewelry"
+    jewelry: "jewelry",
+    basket: "basket"
     // cutting_board is handled separately, as "custom", since it always
     // carries engraving/style details.
 };

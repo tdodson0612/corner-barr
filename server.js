@@ -271,7 +271,8 @@ const CATEGORY_LABELS = {
     soap_candle: "Soap & Candle",
     holiday: "Holiday",
     resin_craft: "Resin Craft",
-    jewelry: "Jewelry"
+    jewelry: "Jewelry",
+    basket: "Basket"
 };
 
 function mapProductRow(row) {
@@ -320,6 +321,7 @@ app.get("/api/products", async (req, res) => {
         const holidayProducts = [];
         const resinCrafts = [];
         const jewelryItems = [];
+        const baskets = [];
 
         for (const row of data) {
 
@@ -335,6 +337,8 @@ app.get("/api/products", async (req, res) => {
                 resinCrafts.push(mapped);
             } else if (row.category === "jewelry") {
                 jewelryItems.push(mapped);
+            } else if (row.category === "basket") {
+                baskets.push(mapped);
             }
         }
 
@@ -344,6 +348,7 @@ app.get("/api/products", async (req, res) => {
             holidayProducts,
             resinCrafts,
             jewelryItems,
+            baskets,
             engravingStyles: localOptions.engravingStyles
         });
 
@@ -783,7 +788,7 @@ app.get("/api/me", async (req, res) => {
    ADMIN — PRODUCT MANAGEMENT (owner only)
 ========================================= */
 
-const ALLOWED_CATEGORIES = ["cutting_board", "soap_candle", "holiday", "resin_craft", "jewelry"];
+const ALLOWED_CATEGORIES = ["cutting_board", "soap_candle", "holiday", "resin_craft", "jewelry", "basket"];
 
 function validateProductInput(body, { partial = false } = {}) {
 

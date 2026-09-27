@@ -465,7 +465,8 @@ const CART_CATEGORY_TO_DB_CATEGORY = {
     soap: "soap_candle",
     holiday: "holiday",
     resin: "resin_craft",
-    jewelry: "jewelry"
+    jewelry: "jewelry",
+    basket: "basket"
 };
 
 let shippingMethods = [];
@@ -1790,7 +1791,8 @@ const ADMIN_CATEGORY_LABELS = {
     soap_candle: "Soap & Candle",
     holiday: "Holiday",
     resin_craft: "Resin Craft",
-    jewelry: "Jewelry"
+    jewelry: "Jewelry",
+    basket: "Basket"
 };
 
 
@@ -1817,6 +1819,11 @@ async function refreshShopGridsIfPresent() {
     renderHolidayProducts();
     renderResinCrafts();
     renderJewelry();
+
+    // Checked first, in case the browser still has an older shop page.
+    if (typeof renderBaskets === "function") {
+        renderBaskets();
+    }
 
 }
 
@@ -2711,6 +2718,7 @@ const CATEGORY_DISPLAY_LABELS = {
     soap_candle: "Soap & Candles",
     resin_craft: "Resin Crafts",
     jewelry: "Jewelry",
+    basket: "Baskets",
     holiday: "Holiday"
 };
 

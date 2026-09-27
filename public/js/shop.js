@@ -9,12 +9,14 @@ let soapCandles = [];
 let holidayProducts = [];
 let resinCrafts = [];
 let jewelryItems = [];
+let baskets = [];
 
 const cuttingBoardGrid = document.getElementById("cuttingBoardGrid");
 const soapCandleGrid = document.getElementById("soapCandleGrid");
 const holidayGrid = document.getElementById("holidayGrid");
 const resinGrid = document.getElementById("resinGrid");
 const jewelryGrid = document.getElementById("jewelryGrid");
+const basketGrid = document.getElementById("basketGrid");
 
 
 async function loadProductData() {
@@ -32,6 +34,7 @@ async function loadProductData() {
     holidayProducts = data.holidayProducts;
     resinCrafts = data.resinCrafts;
     jewelryItems = data.jewelryItems;
+    baskets = data.baskets || [];
 
 }
 
@@ -229,6 +232,31 @@ function renderJewelry() {
 
 
 /* =========================================
+   BASKETS
+========================================= */
+
+function renderBaskets() {
+
+    if (!basketGrid) {
+        return;
+    }
+
+    basketGrid.innerHTML = baskets.map(product => {
+
+        const imageMarkup = product.image_url
+            ? `<img class="product-photo" src="${escapeHtml(product.image_url)}" alt="${escapeHtml(product.name)}">`
+            : `<div class="product-photo-placeholder"></div>`;
+
+        return productCardMarkup(product, "", imageMarkup);
+
+    }).join("");
+
+    attachWishlistButtons(basketGrid);
+
+}
+
+
+/* =========================================
    INITIALIZE
 ========================================= */
 
@@ -249,6 +277,7 @@ async function initShop() {
     renderHolidayProducts();
     renderResinCrafts();
     renderJewelry();
+    renderBaskets();
 
     renderRecommendedForYou();
 

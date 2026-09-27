@@ -10,7 +10,8 @@ const CART_CATEGORY_TO_DB_CATEGORY = {
     soap: "soap_candle",
     holiday: "holiday",
     resin: "resin_craft",
-    jewelry: "jewelry"
+    jewelry: "jewelry",
+    basket: "basket"
 };
 
 // Engraving photos are stored under a random name like
