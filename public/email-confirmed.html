@@ -1,0 +1,106 @@
+<!-- /corner-barr/public/email-confirmed.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+
+    <title>Corner Barr | Email Confirmed</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+    >
+
+    <link rel="stylesheet" href="css/styles.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        .email-confirmed-page {
+            max-width: 560px;
+            margin: 80px auto;
+            padding: 48px 32px;
+            text-align: center;
+            background: #fff;
+            border: 1px solid #e6dfd3;
+        }
+        .email-confirmed-page h1 {
+            margin: 8px 0 16px;
+        }
+        .email-confirmed-page p {
+            color: #5f5a52;
+            line-height: 1.6;
+            margin: 0 0 28px;
+        }
+        .email-confirmed-page .primary-button {
+            display: inline-block;
+            text-decoration: none;
+            padding: 14px 32px;
+        }
+    </style>
+
+</head>
+
+<body>
+
+    <div id="header-slot"></div>
+
+    <main>
+
+        <section class="email-confirmed-page" id="emailConfirmedBox">
+
+            <p class="eyebrow">WELCOME</p>
+
+            <h1 id="emailConfirmedTitle">Your email is confirmed!</h1>
+
+            <p id="emailConfirmedText">
+                Thanks for creating a Corner Barr account. You're all set to shop,
+                save favorites to your wishlist, and track your orders.
+            </p>
+
+            <a href="shop.html" class="primary-button" id="emailConfirmedButton">Start Shopping</a>
+
+        </section>
+
+    </main>
+
+    <div id="footer-slot"></div>
+
+    <div id="cart-drawer-slot"></div>
+    <div id="checkout-modal-slot"></div>
+    <div id="account-modal-slot"></div>
+    <div id="admin-modal-slot"></div>
+
+    <script>
+        // If the link was expired or already used, Supabase sends the
+        // visitor here with an error in the address. Show a helpful
+        // message instead of "confirmed".
+        (function () {
+            var params = new URLSearchParams(
+                (window.location.hash || "").replace(/^#/, "") + "&" + (window.location.search || "").replace(/^\?/, "")
+            );
+            if (params.get("error") || params.get("error_code")) {
+                document.getElementById("emailConfirmedTitle").textContent = "This link has expired";
+                document.getElementById("emailConfirmedText").textContent =
+                    "Your confirmation link is no longer valid. It may have already been used. " +
+                    "Try logging in with your email and password. If that doesn't work, " +
+                    "email us at Ashley@cornerbarr.com and we'll help.";
+                document.getElementById("emailConfirmedButton").textContent = "Go to the Shop";
+            }
+        })();
+    </script>
+
+    <script src="js/partials.js"></script>
+    <script src="js/shared.js"></script>
+    <script>initShared();</script>
+
+</body>
+
+</html>

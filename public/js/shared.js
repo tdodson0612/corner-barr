@@ -1704,7 +1704,15 @@ async function handleAccountSubmit(event) {
 
         if (isSignUpMode) {
 
-            const { data, error } = await supabaseClient.auth.signUp({ email, password });
+            const { data, error } = await supabaseClient.auth.signUp({
+                email,
+                password,
+                options: {
+                    // The link in the confirmation email brings the customer
+                    // to a friendly "Your email is confirmed!" page.
+                    emailRedirectTo: `${window.location.origin}/email-confirmed.html`
+                }
+            });
 
             if (error) {
                 throw error;
