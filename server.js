@@ -2508,6 +2508,7 @@ app.post("/api/webhooks/paypal", async (req, res) => {
 
 require("./data/labels")(app, { requireOwner, supabaseAdmin });
 require("./data/engraving")(app, { express, requireOwner, supabaseAdmin });
+require("./data/seo")(app, { supabaseAdmin });
 
 app.listen(PORT, () => {
     console.log(`Corner Barr server running at http://localhost:${PORT}`);
