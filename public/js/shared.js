@@ -309,7 +309,7 @@ function renderCart() {
 
         const engraving = item.engraving
             ? `Engraving: ${escapeHtml(item.engraving)}`
-            : "No engraving";
+            : (item.engravingPhotoPath ? "" : "No engraving");
 
         const details = [item.style, engraving]
             .filter(Boolean)

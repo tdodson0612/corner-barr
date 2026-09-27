@@ -778,7 +778,7 @@ function renderPhotoEngravingSection() {
             <span id="engravingPhotoText">Add a photo of a loved one, a pet, a favorite place, or anything you'd like engraved</span>
             <input type="file" id="engravingPhotoInput" accept="image/*" class="admin-file-input">
         </div>
-        <div class="input-help">Clear, well-lit photos engrave best. Only Corner Barr can see your photo.</div>
+        <div class="input-help" style="color:#5f5a52;">Clear, well-lit photos engrave best. Only Corner Barr can see your photo.</div>
         <button type="button" class="remove-item hidden" id="engravingPhotoRemove">Remove photo</button>
         <div id="engravingPhotoError" class="checkout-error"></div>
     `;
