@@ -3675,8 +3675,8 @@ async function getLabelRates(order, area) {
 
         ratesContainer.innerHTML = `
             <div class="admin-order-refund-row">
-                <select data-label-rate-select style="flex:1; min-width:260px; padding:10px; font:inherit; border:1px solid #ccc; background:#fff;">
-                    <option value="">Choose a shipping option…</option>
+                <select data-label-rate-select class="label-rate-select" aria-label="Shipping option">
+                    <option value="">Select a shipping option (${data.rates.length} available)</option>
                 </select>
                 <button type="button" class="admin-order-save" data-label-buy disabled>Buy Label</button>
             </div>
