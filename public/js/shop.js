@@ -1,22 +1,29 @@
 // /corner-barr/public/js/shop.js
 //
-// Renders the 5 category grids on shop.html. Cards are clickable — like
-// Amazon's search results — and take the customer to product.html for
-// details, customization (cutting boards), and Add to Cart.
+// Renders shop.html. The categories (and their order, names, and
+// descriptions) come from the database, so any category the owner adds
+// in Manage Shop > Categories shows up here automatically. Cards are
+// clickable and take the customer to product.html.
 
-let cuttingBoards = [];
-let soapCandles = [];
-let holidayProducts = [];
-let resinCrafts = [];
-let jewelryItems = [];
-let baskets = [];
+let shopCategories = [];
 
-const cuttingBoardGrid = document.getElementById("cuttingBoardGrid");
-const soapCandleGrid = document.getElementById("soapCandleGrid");
-const holidayGrid = document.getElementById("holidayGrid");
-const resinGrid = document.getElementById("resinGrid");
-const jewelryGrid = document.getElementById("jewelryGrid");
-const basketGrid = document.getElementById("basketGrid");
+const shopCategoryNav = document.getElementById("shopCategoryNav");
+
+// The collection sections are placed right after the category menu (or
+// after "Recommended For You", once that exists), exactly where the
+// fixed sections used to be, so the page's styling is unchanged.
+function replaceShopSections(html) {
+
+    document.querySelectorAll("[data-shop-dynamic]").forEach(el => el.remove());
+
+    const anchor = document.getElementById("recommendedForYouSection") || shopCategoryNav;
+    anchor.insertAdjacentHTML("afterend", html);
+
+}
+
+function showShopMessage(message) {
+    replaceShopSections(`<section class="shop-collection" data-shop-dynamic><p>${escapeHtml(message)}</p></section>`);
+}
 
 
 async function loadProductData() {
@@ -29,12 +36,7 @@ async function loadProductData() {
 
     const data = await response.json();
 
-    cuttingBoards = data.cuttingBoards;
-    soapCandles = data.soapCandles;
-    holidayProducts = data.holidayProducts;
-    resinCrafts = data.resinCrafts;
-    jewelryItems = data.jewelryItems;
-    baskets = data.baskets || [];
+    shopCategories = Array.isArray(data.categories) ? data.categories : [];
 
 }
 
@@ -56,8 +58,13 @@ async function renderRecommendedForYou() {
         // description, and grid together) — not just before the grid
         // div itself, which would land this in between the heading and
         // the products instead of cleanly above the whole thing.
-        const cuttingBoardsWrapper = cuttingBoardGrid.closest("section") || cuttingBoardGrid;
-        cuttingBoardsWrapper.insertAdjacentElement("beforebegin", section);
+        const firstCollection = document.querySelector("[data-shop-dynamic]");
+
+        if (firstCollection) {
+            firstCollection.insertAdjacentElement("beforebegin", section);
+        } else {
+            shopCategoryNav.insertAdjacentElement("afterend", section);
+        }
     }
 
     try {
@@ -125,135 +132,113 @@ function productCardMarkup(product, imageClassName, imageMarkup) {
 
 
 /* =========================================
-   CUTTING BOARDS
+   CATEGORY SECTIONS
 ========================================= */
 
-function renderCuttingBoards() {
-
-    cuttingBoardGrid.innerHTML = cuttingBoards.map(product => {
-
-        const imageMarkup = product.image_url
-            ? `<img class="product-photo" src="${escapeHtml(product.image_url)}" alt="${escapeHtml(product.name)}">`
-            : `<div class="board-shape ${product.boardClass || "board-classic"}">
+// The original categories keep their special look for products that
+// don't have a photo yet. Every other category uses the standard card.
+const SPECIAL_CATEGORY_STYLES = {
+    cutting_board: {
+        imageClassName: "cutting-board-image",
+        placeholder: product => `<div class="board-shape ${escapeHtml(product.boardClass || "board-classic")}">
                    <div class="board-engraving">CORNER BARR</div>
-               </div>`;
+               </div>`
+    },
+    soap_candle: {
+        imageClassName: "soap-candle-image",
+        placeholder: product => `<div class="product-object ${escapeHtml(product.productClass || "soap-object")}"></div>`
+    },
+    holiday: {
+        imageClassName: "holiday-image",
+        sectionClassName: "holiday-collection",
+        placeholder: product => `<div class="holiday-object">${escapeHtml(product.holidayText || "")}</div>`
+    }
+};
 
-        return productCardMarkup(product, "cutting-board-image", imageMarkup);
-
-    }).join("");
-
-    attachWishlistButtons(cuttingBoardGrid);
-
+function collectionNumber(index) {
+    return String(index + 1).padStart(2, "0");
 }
 
+function renderShopCollections() {
 
-/* =========================================
-   SOAP & CANDLES
-========================================= */
+    // Only categories that have products are shown to customers.
+    const visible = shopCategories.filter(c => Array.isArray(c.products) && c.products.length > 0);
 
-function renderSoapCandles() {
+    shopCategoryNav.innerHTML = visible.map((category, index) => `
+        <a href="#${escapeHtml(category.anchor)}" class="shop-category-link">
+            <span>${collectionNumber(index)}</span>
+            ${escapeHtml(category.name)}
+        </a>
+    `).join("");
 
-    soapCandleGrid.innerHTML = soapCandles.map(product => {
-
-        const imageMarkup = product.image_url
-            ? `<img class="product-photo" src="${escapeHtml(product.image_url)}" alt="${escapeHtml(product.name)}">`
-            : `<div class="product-object ${product.productClass || "soap-object"}"></div>`;
-
-        return productCardMarkup(product, "soap-candle-image", imageMarkup);
-
-    }).join("");
-
-    attachWishlistButtons(soapCandleGrid);
-
-}
-
-
-/* =========================================
-   HOLIDAY
-========================================= */
-
-function renderHolidayProducts() {
-
-    holidayGrid.innerHTML = holidayProducts.map(product => {
-
-        const imageMarkup = product.image_url
-            ? `<img class="product-photo" src="${escapeHtml(product.image_url)}" alt="${escapeHtml(product.name)}">`
-            : `<div class="holiday-object">${escapeHtml(product.holidayText || "")}</div>`;
-
-        return productCardMarkup(product, "holiday-image", imageMarkup);
-
-    }).join("");
-
-    attachWishlistButtons(holidayGrid);
-
-}
-
-
-/* =========================================
-   RESIN CRAFTS
-========================================= */
-
-function renderResinCrafts() {
-
-    resinGrid.innerHTML = resinCrafts.map(product => {
-
-        const imageMarkup = product.image_url
-            ? `<img class="product-photo" src="${escapeHtml(product.image_url)}" alt="${escapeHtml(product.name)}">`
-            : `<div class="product-photo-placeholder"></div>`;
-
-        return productCardMarkup(product, "", imageMarkup);
-
-    }).join("");
-
-    attachWishlistButtons(resinGrid);
-
-}
-
-
-/* =========================================
-   JEWELRY
-========================================= */
-
-function renderJewelry() {
-
-    jewelryGrid.innerHTML = jewelryItems.map(product => {
-
-        const imageMarkup = product.image_url
-            ? `<img class="product-photo" src="${escapeHtml(product.image_url)}" alt="${escapeHtml(product.name)}">`
-            : `<div class="product-photo-placeholder"></div>`;
-
-        return productCardMarkup(product, "", imageMarkup);
-
-    }).join("");
-
-    attachWishlistButtons(jewelryGrid);
-
-}
-
-
-/* =========================================
-   BASKETS
-========================================= */
-
-function renderBaskets() {
-
-    if (!basketGrid) {
+    if (visible.length === 0) {
+        showShopMessage("New products are coming soon. Check back shortly!");
         return;
     }
 
-    basketGrid.innerHTML = baskets.map(product => {
+    const html = visible.map((category, index) => {
 
-        const imageMarkup = product.image_url
-            ? `<img class="product-photo" src="${escapeHtml(product.image_url)}" alt="${escapeHtml(product.name)}">`
-            : `<div class="product-photo-placeholder"></div>`;
+        const style = SPECIAL_CATEGORY_STYLES[category.key] || {};
 
-        return productCardMarkup(product, "", imageMarkup);
+        const cards = category.products.map(product => {
+
+            const imageMarkup = product.image_url
+                ? `<img class="product-photo" src="${escapeHtml(product.image_url)}" alt="${escapeHtml(product.name)}">`
+                : (style.placeholder ? style.placeholder(product) : `<div class="product-photo-placeholder"></div>`);
+
+            return productCardMarkup(product, style.imageClassName || "", imageMarkup);
+
+        }).join("");
+
+        return `
+            <section class="shop-collection ${style.sectionClassName || ""}" id="${escapeHtml(category.anchor)}" data-shop-dynamic>
+
+                <div class="collection-heading">
+                    <div>
+                        <p class="eyebrow">COLLECTION ${collectionNumber(index)}</p>
+                        <h2>${escapeHtml(category.name)}</h2>
+                    </div>
+                    ${category.description ? `<p>${escapeHtml(category.description)}</p>` : ""}
+                </div>
+
+                <div class="product-grid">${cards}</div>
+
+            </section>
+        `;
 
     }).join("");
 
-    attachWishlistButtons(basketGrid);
+    replaceShopSections(html);
+
+    document.querySelectorAll("[data-shop-dynamic] .product-grid").forEach(grid => attachWishlistButtons(grid));
 
 }
+
+// Sections are built after the page loads, so jump to a link like
+// shop.html#baskets ourselves once they exist.
+function scrollToHashSection() {
+
+    const id = decodeURIComponent((window.location.hash || "").slice(1));
+
+    if (!id) {
+        return;
+    }
+
+    const target = document.getElementById(id);
+
+    if (target) {
+        target.scrollIntoView();
+    }
+
+}
+
+// Older versions of shared.js (possibly still saved in a browser) call
+// these names after the owner edits a listing. Keep them working.
+function renderCuttingBoards() { renderShopCollections(); }
+function renderSoapCandles() {}
+function renderHolidayProducts() {}
+function renderResinCrafts() {}
+function renderJewelry() {}
 
 
 /* =========================================
@@ -268,16 +253,12 @@ async function initShop() {
         await loadProductData();
     } catch (err) {
         console.error(err);
-        cuttingBoardGrid.innerHTML = "<p>Could not load products. Please refresh the page.</p>";
+        showShopMessage("Could not load products. Please refresh the page.");
         return;
     }
 
-    renderCuttingBoards();
-    renderSoapCandles();
-    renderHolidayProducts();
-    renderResinCrafts();
-    renderJewelry();
-    renderBaskets();
+    renderShopCollections();
+    scrollToHashSection();
 
     renderRecommendedForYou();
 

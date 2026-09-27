@@ -5,6 +5,9 @@ const path = require("path");
 const { priceCart } = require("./data/pricing");
 const { resolveShippingCost } = require("./data/shipping");
 const { supabaseAdmin } = require("./data/supabase");
+const { createCategoryHelpers, registerCategoryRoutes } = require("./data/categories");
+const categoryHelpers = createCategoryHelpers(supabaseAdmin);
+const { getCategories, categoryLabel, categoryExists } = categoryHelpers;
 const localOptions = require("./data/products.json");
 const vault = require("./data/vault");
 const { checkStockAvailability, decrementStockForOrder } = require("./data/inventory");
@@ -266,15 +269,6 @@ app.get("/api/config", (req, res) => {
    PRODUCTS (public read, from Supabase)
 ========================================= */
 
-const CATEGORY_LABELS = {
-    cutting_board: "Cutting Board",
-    soap_candle: "Soap & Candle",
-    holiday: "Holiday",
-    resin_craft: "Resin Craft",
-    jewelry: "Jewelry",
-    basket: "Basket"
-};
-
 function mapProductRow(row) {
 
     const base = {
@@ -284,7 +278,7 @@ function mapProductRow(row) {
         price: Number(row.price),
         image_url: row.image_url || null,
         categoryKey: row.category,
-        category: CATEGORY_LABELS[row.category] || row.category,
+        category: categoryLabel(row.category),
         stock: Number.isFinite(Number(row.stock)) ? Number(row.stock) : 0,
         variations: Array.isArray(row.variations) ? row.variations : [],
         allowPhotoEngraving: row.allow_photo_engraving === true,
@@ -306,6 +300,8 @@ function mapProductRow(row) {
 
 app.get("/api/products", async (req, res) => {
     try {
+        const categoryList = await getCategories();
+
         const { data, error } = await supabaseAdmin
             .from("products")
             .select("*")
@@ -321,11 +317,19 @@ app.get("/api/products", async (req, res) => {
         const holidayProducts = [];
         const resinCrafts = [];
         const jewelryItems = [];
-        const baskets = [];
+
+        // Every category (in shop order) with its products. The shop page
+        // builds its sections from this, so new categories appear on
+        // their own. The fixed lists above are kept for older pages.
+        const productsByCategory = new Map(categoryList.map(c => [c.key, []]));
 
         for (const row of data) {
 
             const mapped = mapProductRow(row);
+
+            if (productsByCategory.has(row.category)) {
+                productsByCategory.get(row.category).push(mapped);
+            }
 
             if (row.category === "cutting_board") {
                 cuttingBoards.push(mapped);
@@ -337,8 +341,6 @@ app.get("/api/products", async (req, res) => {
                 resinCrafts.push(mapped);
             } else if (row.category === "jewelry") {
                 jewelryItems.push(mapped);
-            } else if (row.category === "basket") {
-                baskets.push(mapped);
             }
         }
 
@@ -348,7 +350,13 @@ app.get("/api/products", async (req, res) => {
             holidayProducts,
             resinCrafts,
             jewelryItems,
-            baskets,
+            categories: categoryList.map(c => ({
+                key: c.key,
+                name: c.name,
+                description: c.description,
+                anchor: c.anchor,
+                products: productsByCategory.get(c.key) || []
+            })),
             engravingStyles: localOptions.engravingStyles
         });
 
@@ -361,6 +369,8 @@ app.get("/api/products", async (req, res) => {
 // Single product, used by the item detail page.
 app.get("/api/products/:id", async (req, res) => {
     try {
+        await getCategories();
+
         const { data, error } = await supabaseAdmin
             .from("products")
             .select("*")
@@ -414,6 +424,8 @@ app.get("/api/search", async (req, res) => {
 
     try {
 
+        await getCategories();
+
         const { data, error } = await supabaseAdmin
             .from("products")
             .select("*");
@@ -427,7 +439,7 @@ app.get("/api/search", async (req, res) => {
 
             const name = (row.name || "").toLowerCase();
             const description = (row.description || "").toLowerCase();
-            const categoryLabel = (CATEGORY_LABELS[row.category] || row.category || "").toLowerCase();
+            const categoryName = (categoryLabel(row.category) || "").toLowerCase();
             const tags = (row.tags || []).map(t => t.toLowerCase());
 
             let score = 0;
@@ -435,7 +447,7 @@ app.get("/api/search", async (req, res) => {
             if (name.includes(query)) score += 5;
             if (name.startsWith(query)) score += 3;
             if (tags.some(tag => tag.includes(query))) score += 3;
-            if (categoryLabel.includes(query)) score += 2;
+            if (categoryName.includes(query)) score += 2;
             if (description.includes(query)) score += 1;
 
             return { row, score };
@@ -462,6 +474,7 @@ app.get("/api/search", async (req, res) => {
 app.get("/api/products/:id/similar", async (req, res) => {
 
     try {
+        await getCategories();
         const limit = Math.min(Number(req.query.limit) || 4, 12);
         const similar = await getSimilarProducts(req.params.id, limit);
         res.json(similar.map(mapProductRow));
@@ -475,6 +488,8 @@ app.get("/api/products/:id/similar", async (req, res) => {
 app.get("/api/recommendations", async (req, res) => {
 
     try {
+
+        await getCategories();
 
         const auth = await getAuthContext(req);
 
@@ -788,7 +803,6 @@ app.get("/api/me", async (req, res) => {
    ADMIN — PRODUCT MANAGEMENT (owner only)
 ========================================= */
 
-const ALLOWED_CATEGORIES = ["cutting_board", "soap_candle", "holiday", "resin_craft", "jewelry", "basket"];
 
 function validateProductInput(body, { partial = false } = {}) {
 
@@ -796,10 +810,12 @@ function validateProductInput(body, { partial = false } = {}) {
     const clean = {};
 
     if (!partial || body.category !== undefined) {
-        if (!ALLOWED_CATEGORIES.includes(body.category)) {
-            errors.push("category must be one of: " + ALLOWED_CATEGORIES.join(", "));
+        // Whether the category actually exists is checked in the route
+        // (it needs the database), right after this.
+        if (typeof body.category !== "string" || !body.category.trim()) {
+            errors.push("Please choose a category.");
         } else {
-            clean.category = body.category;
+            clean.category = body.category.trim();
         }
     }
 
@@ -968,6 +984,10 @@ app.post("/api/admin/products", requireOwner, async (req, res) => {
         return res.status(400).json({ error: errors.join(" ") });
     }
 
+    if (!(await categoryExists(clean.category))) {
+        return res.status(400).json({ error: "That category doesn't exist anymore. Please pick another one." });
+    }
+
     const { data, error } = await supabaseAdmin
         .from("products")
         .insert(clean)
@@ -989,6 +1009,10 @@ app.put("/api/admin/products/:id", requireOwner, async (req, res) => {
 
     if (errors.length > 0) {
         return res.status(400).json({ error: errors.join(" ") });
+    }
+
+    if (clean.category !== undefined && !(await categoryExists(clean.category))) {
+        return res.status(400).json({ error: "That category doesn't exist anymore. Please pick another one." });
     }
 
     if (Object.keys(clean).length === 0) {
@@ -2514,6 +2538,7 @@ app.post("/api/webhooks/paypal", async (req, res) => {
 require("./data/labels")(app, { requireOwner, supabaseAdmin });
 require("./data/engraving")(app, { express, requireOwner, supabaseAdmin });
 require("./data/seo")(app, { supabaseAdmin });
+registerCategoryRoutes(app, { requireOwner, supabaseAdmin, helpers: categoryHelpers });
 
 app.listen(PORT, () => {
     console.log(`Corner Barr server running at http://localhost:${PORT}`);

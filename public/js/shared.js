@@ -465,8 +465,7 @@ const CART_CATEGORY_TO_DB_CATEGORY = {
     soap: "soap_candle",
     holiday: "holiday",
     resin: "resin_craft",
-    jewelry: "jewelry",
-    basket: "basket"
+    jewelry: "jewelry"
 };
 
 let shippingMethods = [];
@@ -504,7 +503,7 @@ function computeCartCategoryTotals() {
     const totals = {};
 
     cart.forEach(item => {
-        const dbCategory = CART_CATEGORY_TO_DB_CATEGORY[item.category];
+        const dbCategory = CART_CATEGORY_TO_DB_CATEGORY[item.category] || item.category;
         totals[dbCategory] = (totals[dbCategory] || 0) + item.price * item.quantity;
     });
 
@@ -1791,8 +1790,7 @@ const ADMIN_CATEGORY_LABELS = {
     soap_candle: "Soap & Candle",
     holiday: "Holiday",
     resin_craft: "Resin Craft",
-    jewelry: "Jewelry",
-    basket: "Basket"
+    jewelry: "Jewelry"
 };
 
 
@@ -1814,16 +1812,16 @@ async function refreshShopGridsIfPresent() {
 
     await loadProductData();
 
+    if (typeof renderShopCollections === "function") {
+        renderShopCollections();
+        return;
+    }
+
     renderCuttingBoards();
     renderSoapCandles();
     renderHolidayProducts();
     renderResinCrafts();
     renderJewelry();
-
-    // Checked first, in case the browser still has an older shop page.
-    if (typeof renderBaskets === "function") {
-        renderBaskets();
-    }
 
 }
 
@@ -1843,6 +1841,16 @@ function clearAdminError() {
 async function openAdminModal() {
 
     clearAdminError();
+
+    // Fill the listing form's Category dropdown from the database first,
+    // so new categories are available (and the default is right).
+    try {
+        await loadShopCategories();
+        fillAdminCategorySelect();
+    } catch (err) {
+        console.error("Could not load categories:", err);
+    }
+
     resetAdminForm();
     resetAdminShippingMethodForm();
     switchAdminTab("listings");
@@ -1901,7 +1909,7 @@ function renderAdminProductList(products) {
 
             <div class="admin-product-info">
                 <div class="name">${escapeHtml(product.name)}</div>
-                <div class="meta">${escapeHtml(ADMIN_CATEGORY_LABELS[product.category] || product.category)} · ${money(Number(product.price))} · ${Number(product.stock) || 0} in stock</div>
+                <div class="meta">${escapeHtml(shopCategoryName(product.category) || ADMIN_CATEGORY_LABELS[product.category] || product.category)} · ${money(Number(product.price))} · ${Number(product.stock) || 0} in stock</div>
             </div>
 
             <div class="admin-row-actions">
@@ -2390,7 +2398,16 @@ function switchAdminTab(tab) {
 
     const showingOrders = tab === "orders";
     const showingShipping = tab === "shipping";
-    const showingListings = !showingOrders && !showingShipping;
+    const showingCategories = tab === "categories";
+    const showingListings = !showingOrders && !showingShipping && !showingCategories;
+
+    const categoriesTab = document.getElementById("adminTabCategories");
+    const categoriesSection = document.getElementById("adminCategoriesSection");
+
+    if (categoriesTab && categoriesSection) {
+        categoriesTab.classList.toggle("active", showingCategories);
+        categoriesSection.classList.toggle("hidden", !showingCategories);
+    }
 
     adminTabListings.classList.toggle("active", showingListings);
     adminTabOrders.classList.toggle("active", showingOrders);
@@ -2413,6 +2430,13 @@ function switchAdminTab(tab) {
         loadAdminShipping().catch(err => {
             console.error(err);
             showAdminError("Could not load shipping settings.");
+        });
+    }
+
+    if (showingCategories) {
+        loadAdminCategories().catch(err => {
+            console.error(err);
+            showAdminError("Could not load categories.");
         });
     }
 
@@ -2718,7 +2742,6 @@ const CATEGORY_DISPLAY_LABELS = {
     soap_candle: "Soap & Candles",
     resin_craft: "Resin Crafts",
     jewelry: "Jewelry",
-    basket: "Baskets",
     holiday: "Holiday"
 };
 
@@ -2930,7 +2953,7 @@ function renderAdminCategoryThresholds(thresholds) {
         const row = document.createElement("div");
         row.className = "admin-category-threshold-row";
 
-        const label = CATEGORY_DISPLAY_LABELS[setting.category] || setting.category;
+        const label = shopCategoryName(setting.category) || CATEGORY_DISPLAY_LABELS[setting.category] || setting.category;
         const currentValue = setting.free_shipping_threshold ?? "";
 
         row.innerHTML = `
@@ -3050,6 +3073,16 @@ function wireSharedEventListeners() {
     adminTabListings.addEventListener("click", () => switchAdminTab("listings"));
     adminTabOrders.addEventListener("click", () => switchAdminTab("orders"));
     adminTabShipping.addEventListener("click", () => switchAdminTab("shipping"));
+
+    const adminTabCategories = document.getElementById("adminTabCategories");
+    if (adminTabCategories) {
+        adminTabCategories.addEventListener("click", () => switchAdminTab("categories"));
+    }
+
+    const adminAddCategoryButton = document.getElementById("adminAddCategoryButton");
+    if (adminAddCategoryButton) {
+        adminAddCategoryButton.addEventListener("click", addAdminCategory);
+    }
     
     adminShippingMethodForm.addEventListener("submit", handleAdminShippingMethodSubmit);
     adminShippingCancelEdit.addEventListener("click", resetAdminShippingMethodForm);
@@ -3589,6 +3622,8 @@ async function initShared() {
 
     initSupabaseAuth().catch(err => console.error("Could not initialize accounts:", err));
 
+    fillFooterShopLinks().catch(err => console.error("Could not load footer categories:", err));
+
     const currentYearEl = document.getElementById("currentYear");
     if (currentYearEl) {
         currentYearEl.textContent = new Date().getFullYear();
@@ -3906,6 +3941,283 @@ async function openEngravingPhoto(path) {
             photoWindow.close();
         }
         showAdminError(err.message || "Could not open this photo.");
+    }
+
+}
+
+
+/* =========================================
+   SHOP CATEGORIES
+   The list lives in the database (Manage Shop > Categories), so these
+   read it instead of a fixed list.
+========================================= */
+
+let shopCategoryList = [];
+
+async function loadShopCategories() {
+
+    const response = await fetch("/api/categories");
+    const data = await response.json();
+
+    if (!response.ok || !Array.isArray(data)) {
+        throw new Error("Could not load categories.");
+    }
+
+    shopCategoryList = data;
+    return shopCategoryList;
+
+}
+
+function shopCategoryName(key) {
+    const found = shopCategoryList.find(c => c.key === key);
+    return found ? found.name : null;
+}
+
+// Rebuilds the listing form's Category dropdown, keeping whatever was
+// selected if it still exists.
+function fillAdminCategorySelect() {
+
+    if (!adminCategory || shopCategoryList.length === 0) {
+        return;
+    }
+
+    const previous = adminCategory.value;
+
+    adminCategory.innerHTML = shopCategoryList
+        .map(c => `<option value="${escapeHtml(c.key)}">${escapeHtml(c.name)}</option>`)
+        .join("");
+
+    if (shopCategoryList.some(c => c.key === previous)) {
+        adminCategory.value = previous;
+    }
+
+}
+
+// The footer's "Shop" links: one per category that has listings.
+async function fillFooterShopLinks() {
+
+    const existingLink = document.querySelector('.site-footer a[href^="shop.html#"]');
+
+    if (!existingLink) {
+        return;
+    }
+
+    const column = existingLink.parentElement;
+    const categories = (await loadShopCategories()).filter(c => c.productCount > 0);
+
+    if (categories.length === 0) {
+        return;
+    }
+
+    column.querySelectorAll('a[href^="shop.html#"]').forEach(a => a.remove());
+
+    categories.forEach(category => {
+        const link = document.createElement("a");
+        link.href = `shop.html#${encodeURIComponent(category.anchor)}`;
+        link.textContent = category.name;
+        column.appendChild(link);
+    });
+
+}
+
+
+/* =========================================
+   ADMIN — CATEGORIES TAB (owner only)
+========================================= */
+
+async function loadAdminCategories() {
+
+    await loadShopCategories();
+    renderAdminCategories();
+
+}
+
+function renderAdminCategories() {
+
+    const list = document.getElementById("adminCategoriesList");
+
+    if (!list) {
+        return;
+    }
+
+    list.innerHTML = "";
+
+    shopCategoryList.forEach((category, index) => {
+
+        const row = document.createElement("div");
+        row.style.cssText = "border:1px solid #e0d9cc; background:#fff; padding:14px; margin-bottom:12px;";
+
+        const countText = category.productCount === 1 ? "1 listing" : `${category.productCount} listings`;
+        const hiddenNote = category.productCount === 0 ? " · hidden from customers until it has a listing" : "";
+        const canDelete = category.key !== "cutting_board";
+
+        row.innerHTML = `
+            <div class="form-group">
+                <label>Name</label>
+                <input type="text" maxlength="60" data-category-name value="${escapeHtml(category.name)}">
+            </div>
+            <div class="form-group">
+                <label>Description (shown under the name on the shop page)</label>
+                <textarea maxlength="300" data-category-description>${escapeHtml(category.description || "")}</textarea>
+            </div>
+            <p class="checkout-note">${countText}${hiddenNote}</p>
+            <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                <button type="button" class="admin-refund-preset" data-category-up ${index === 0 ? "disabled" : ""}>↑ Move up</button>
+                <button type="button" class="admin-refund-preset" data-category-down ${index === shopCategoryList.length - 1 ? "disabled" : ""}>↓ Move down</button>
+                <button type="button" class="admin-order-save" data-category-save>Save</button>
+                ${canDelete ? `<button type="button" class="remove-item" data-category-delete>Delete</button>` : ""}
+            </div>
+        `;
+
+        row.querySelector("[data-category-save]").addEventListener("click", () => {
+            saveAdminCategory(
+                category.key,
+                row.querySelector("[data-category-name]").value,
+                row.querySelector("[data-category-description]").value
+            );
+        });
+
+        row.querySelector("[data-category-up]").addEventListener("click", () => moveAdminCategory(index, -1));
+        row.querySelector("[data-category-down]").addEventListener("click", () => moveAdminCategory(index, 1));
+
+        const deleteButton = row.querySelector("[data-category-delete]");
+        if (deleteButton) {
+            deleteButton.addEventListener("click", () => deleteAdminCategory(category));
+        }
+
+        list.appendChild(row);
+
+    });
+
+}
+
+// After any category change: refresh everything that shows categories.
+async function afterCategoryChange() {
+
+    await loadAdminCategories();
+    fillAdminCategorySelect();
+    fillFooterShopLinks().catch(() => {});
+    refreshShopGridsIfPresent().catch(() => {});
+
+}
+
+async function sendCategoryRequest(url, method, body) {
+
+    const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: body ? JSON.stringify(body) : undefined
+    });
+
+    if (response.status === 204) {
+        return null;
+    }
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data.error || "Something went wrong. Please try again.");
+    }
+
+    return data;
+
+}
+
+async function addAdminCategory() {
+
+    clearAdminError();
+
+    const nameInput = document.getElementById("adminNewCategoryName");
+    const descriptionInput = document.getElementById("adminNewCategoryDescription");
+    const button = document.getElementById("adminAddCategoryButton");
+
+    const name = nameInput.value.trim();
+
+    if (!name) {
+        showAdminError("Please give the new category a name.");
+        return;
+    }
+
+    button.disabled = true;
+
+    try {
+
+        await sendCategoryRequest("/api/admin/categories", "POST", {
+            name,
+            description: descriptionInput.value.trim()
+        });
+
+        nameInput.value = "";
+        descriptionInput.value = "";
+
+        await afterCategoryChange();
+
+        alert(`"${name}" was added! It will show in your shop once it has at least one listing. To add one, go to Listings and pick "${name}" as the category.`);
+
+    } catch (err) {
+        showAdminError(err.message);
+    } finally {
+        button.disabled = false;
+    }
+
+}
+
+async function saveAdminCategory(key, name, description) {
+
+    clearAdminError();
+
+    if (!name.trim()) {
+        showAdminError("The category needs a name.");
+        return;
+    }
+
+    try {
+        await sendCategoryRequest(`/api/admin/categories/${encodeURIComponent(key)}`, "PUT", {
+            name: name.trim(),
+            description: description.trim()
+        });
+        await afterCategoryChange();
+    } catch (err) {
+        showAdminError(err.message);
+    }
+
+}
+
+async function moveAdminCategory(index, direction) {
+
+    clearAdminError();
+
+    const newIndex = index + direction;
+
+    if (newIndex < 0 || newIndex >= shopCategoryList.length) {
+        return;
+    }
+
+    const keys = shopCategoryList.map(c => c.key);
+    [keys[index], keys[newIndex]] = [keys[newIndex], keys[index]];
+
+    try {
+        await sendCategoryRequest("/api/admin/categories/reorder", "POST", { keys });
+        await afterCategoryChange();
+    } catch (err) {
+        showAdminError(err.message);
+    }
+
+}
+
+async function deleteAdminCategory(category) {
+
+    clearAdminError();
+
+    if (!confirm(`Delete the "${category.name}" category? This can't be undone.`)) {
+        return;
+    }
+
+    try {
+        await sendCategoryRequest(`/api/admin/categories/${encodeURIComponent(category.key)}`, "DELETE");
+        await afterCategoryChange();
+    } catch (err) {
+        showAdminError(err.message);
     }
 
 }

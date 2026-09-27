@@ -10,8 +10,7 @@ const CART_CATEGORY_TO_DB_CATEGORY = {
     soap: "soap_candle",
     holiday: "holiday",
     resin: "resin_craft",
-    jewelry: "jewelry",
-    basket: "basket"
+    jewelry: "jewelry"
 };
 
 // Engraving photos are stored under a random name like
@@ -37,7 +36,9 @@ function priceForItem(item, dbProduct) {
         throw new Error(`Unknown product: ${item.productId}`);
     }
 
-    const expectedCategory = CART_CATEGORY_TO_DB_CATEGORY[item.category];
+    // Older category codes map to their database name. Categories added
+    // from Manage Shop use their database name directly.
+    const expectedCategory = CART_CATEGORY_TO_DB_CATEGORY[item.category] || item.category;
 
     if (!expectedCategory || dbProduct.category !== expectedCategory) {
         throw new Error(`Product/category mismatch for: ${item.productId}`);
@@ -137,7 +138,7 @@ async function priceCart(cart) {
 
         total += lineTotal;
 
-        const dbCategory = CART_CATEGORY_TO_DB_CATEGORY[item.category];
+        const dbCategory = dbProduct.category;
         categoryTotals[dbCategory] = (categoryTotals[dbCategory] || 0) + lineTotal;
 
         const lineOptions = getProductOptions(dbProduct);
