@@ -284,7 +284,9 @@ function mapProductRow(row) {
         categoryKey: row.category,
         category: CATEGORY_LABELS[row.category] || row.category,
         stock: Number.isFinite(Number(row.stock)) ? Number(row.stock) : 0,
-        variations: Array.isArray(row.variations) ? row.variations : []
+        variations: Array.isArray(row.variations) ? row.variations : [],
+        allowPhotoEngraving: row.allow_photo_engraving === true,
+        photoEngravingPrice: Number(row.photo_engraving_price || 0)
     };
 
     if (row.category === "cutting_board") {
@@ -898,6 +900,19 @@ function validateProductInput(body, { partial = false } = {}) {
 
         }
 
+    }
+
+    if (body.allow_photo_engraving !== undefined) {
+        clean.allow_photo_engraving = body.allow_photo_engraving === true;
+    }
+
+    if (body.photo_engraving_price !== undefined) {
+        const photoPrice = Number(body.photo_engraving_price || 0);
+        if (!Number.isFinite(photoPrice) || photoPrice < 0) {
+            errors.push("The photo engraving price must be a non-negative number.");
+        } else {
+            clean.photo_engraving_price = Math.round(photoPrice * 100) / 100;
+        }
     }
 
     if (!partial || body.image_url !== undefined) {
@@ -2455,6 +2470,7 @@ app.post("/api/webhooks/paypal", async (req, res) => {
 });
 
 require("./data/labels")(app, { requireOwner, supabaseAdmin });
+require("./data/engraving")(app, { express, requireOwner, supabaseAdmin });
 
 app.listen(PORT, () => {
     console.log(`Corner Barr server running at http://localhost:${PORT}`);

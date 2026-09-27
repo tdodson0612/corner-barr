@@ -12,6 +12,14 @@ const CART_CATEGORY_TO_DB_CATEGORY = {
     jewelry: "jewelry"
 };
 
+// Engraving photos are stored under a random name like
+// "3f2b...-....jpg". Anything else is rejected.
+const ENGRAVING_PHOTO_PATH_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|webp|heic)$/;
+
+function cleanText(value, maxLength) {
+    return typeof value === "string" ? value.trim().substring(0, maxLength) : "";
+}
+
 function findOption(list, id) {
     return list.find(o => o.id === id);
 }
@@ -47,6 +55,20 @@ function priceForItem(item, dbProduct) {
 
     }
 
+    if (item.engravingPhotoPath) {
+
+        if (!ENGRAVING_PHOTO_PATH_PATTERN.test(String(item.engravingPhotoPath))) {
+            throw new Error("The engraving photo in your cart is invalid. Please remove the item and add it again.");
+        }
+
+        if (dbProduct.allow_photo_engraving !== true) {
+            throw new Error(`Photo engraving isn't available for ${dbProduct.name}. Please remove the photo and try again.`);
+        }
+
+        price += Number(dbProduct.photo_engraving_price || 0);
+
+    }
+
     return price;
 
 }
@@ -67,7 +89,7 @@ async function priceCart(cart) {
 
     const { data: dbProducts, error } = await supabaseAdmin
         .from("products")
-        .select("id, category, name, price")
+        .select("id, category, name, price, allow_photo_engraving, photo_engraving_price")
         .in("id", productIds);
 
     if (error) {
@@ -98,13 +120,33 @@ async function priceCart(cart) {
         const dbCategory = CART_CATEGORY_TO_DB_CATEGORY[item.category];
         categoryTotals[dbCategory] = (categoryTotals[dbCategory] || 0) + lineTotal;
 
-        lines.push({
+        const line = {
             productId: item.productId,
             name: item.name || dbProduct.name,
             quantity,
             unitPrice,
             lineTotal
-        });
+        };
+
+        // Customization details, saved on the order so Ashley can see
+        // exactly what to make. (Before this, engraving text and gift
+        // messages were never saved to the order at all.)
+        if (item.category === "custom") {
+            const style = findOption(engravingStyles, item.engravingStyleId);
+            line.engraving = cleanText(item.engraving, 30);
+            line.engravingStyle = style ? style.name : "";
+        }
+
+        const giftMessage = cleanText(item.giftMessage, 200);
+        if (giftMessage) {
+            line.giftMessage = giftMessage;
+        }
+
+        if (item.engravingPhotoPath) {
+            line.engravingPhotoPath = String(item.engravingPhotoPath);
+        }
+
+        lines.push(line);
 
     }
 
@@ -116,4 +158,4 @@ async function priceCart(cart) {
 
 }
 
-module.exports = { priceCart, priceForItem };
+module.exports = { priceCart, priceForItem, ENGRAVING_PHOTO_PATH_PATTERN };

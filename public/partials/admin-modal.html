@@ -113,6 +113,22 @@
                         </div>
 
                         <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="adminAllowPhotoEngraving" checked>
+                                <span>Allow photo engraving</span>
+                            </label>
+                            <p class="input-help">
+                                Lets customers upload a photo (a loved one, a pet, a favorite
+                                place) to have engraved on this item. On by default for cutting boards.
+                            </p>
+                            <label for="adminPhotoEngravingPrice">Photo engraving price (USD)</label>
+                            <input id="adminPhotoEngravingPrice" type="number" min="0" step="0.01" placeholder="15.00">
+                            <p class="input-help">
+                                Added to the item's price when a customer includes a photo. Leave blank for no extra charge.
+                            </p>
+                        </div>
+
+                        <div class="form-group">
                             <label>Cover Photo</label>
 
                             <div id="adminDropZone" class="admin-drop-zone">

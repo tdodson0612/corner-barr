@@ -61,6 +61,71 @@ async function notifyOrderStatusChange(order) {
         relatedOrderId: order.id
     });
 
+    if (order.shipping_status === "delivered") {
+        await requestReviewsForOrder(order);
+    }
+
+}
+
+/**
+ * When an order is marked Delivered, asks the customer to review each
+ * item in it (with an optional photo). Tapping the notification opens
+ * that product's page, where the review form is. Skips any product the
+ * customer already reviewed or was already asked about, so marking an
+ * order Delivered twice never sends the request twice.
+ */
+async function requestReviewsForOrder(order) {
+
+    if (!order.user_id || !Array.isArray(order.items)) {
+        return;
+    }
+
+    const products = new Map();
+
+    for (const item of order.items) {
+        if (item && item.productId && !products.has(item.productId)) {
+            products.set(item.productId, item.name || "your item");
+        }
+    }
+
+    for (const [productId, productName] of products) {
+
+        const { data: existingReview, error: reviewError } = await supabaseAdmin
+            .from("reviews")
+            .select("id")
+            .eq("user_id", order.user_id)
+            .eq("product_id", productId)
+            .limit(1)
+            .maybeSingle();
+
+        const { data: existingRequest, error: requestError } = await supabaseAdmin
+            .from("notifications")
+            .select("id")
+            .eq("user_id", order.user_id)
+            .eq("related_product_id", productId)
+            .eq("type", "review_request")
+            .limit(1)
+            .maybeSingle();
+
+        if (reviewError || requestError) {
+            console.error("Could not check for an existing review request:", reviewError || requestError);
+            continue;
+        }
+
+        if (existingReview || existingRequest) {
+            continue;
+        }
+
+        await createNotification({
+            userId: order.user_id,
+            type: "review_request",
+            title: `How do you like your ${productName}?`,
+            body: "Tap here to leave a review. You can add a photo too!",
+            relatedProductId: productId
+        });
+
+    }
+
 }
 
 async function notifyOrderReceived(userId, orderId) {

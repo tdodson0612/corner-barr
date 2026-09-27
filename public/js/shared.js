@@ -317,6 +317,7 @@ function renderCart() {
             .join("<br>");
 
         const gift = item.giftMessage ? "<br>Gift message included" : "";
+        const photo = item.engravingPhotoPath ? "<br>Photo engraving included" : "";
 
         element.innerHTML = `
             <div class="cart-item-image"></div>
@@ -327,6 +328,7 @@ function renderCart() {
                 <div class="cart-item-details">
                     ${details}
                     ${gift}
+                    ${photo}
                 </div>
 
                 <div class="quantity-controls">
@@ -1997,6 +1999,7 @@ function startEditingProduct(product) {
     adminStock.value = Number.isFinite(Number(product.stock)) ? Number(product.stock) : 0;
     adminTags.value = Array.isArray(product.tags) ? product.tags.join(", ") : "";
     renderVariationsBuilder(product.variations || []);
+    setPhotoEngravingFields(product.allow_photo_engraving === true, product.photo_engraving_price);
 
     if (product.image_url) {
         adminImagePreview.src = product.image_url;
@@ -2037,6 +2040,9 @@ function resetAdminForm() {
     adminExtraPhotosList.innerHTML = "";
 
     renderVariationsBuilder([]);
+
+    // New listings start as cutting boards, which allow photo engraving by default.
+    setPhotoEngravingFields(adminCategory.value === "cutting_board", null);
 
     adminFormTitle.textContent = "Add a New Listing";
     adminSaveButton.textContent = "Add Listing";
@@ -2234,6 +2240,7 @@ async function handleAdminProductSubmit(event) {
             stock: Number(adminStock.value),
             tags: adminTags.value,
             variations: collectVariationsFromForm(),
+            ...collectPhotoEngravingFields(),
             image_url: imageUrl
         };
 
@@ -2369,8 +2376,32 @@ function renderAdminOrdersList(orders) {
         });
 
         const itemsSummary = (order.items || [])
-            .map(item => `${item.quantity}× ${escapeHtml(item.name)}`)
-            .join(", ");
+            .map(item => {
+
+                const extras = [];
+
+                if (item.engraving) {
+                    extras.push(`Engrave: "${escapeHtml(item.engraving)}"`);
+                }
+                if (item.engravingStyle) {
+                    extras.push(`Style: ${escapeHtml(item.engravingStyle)}`);
+                }
+                if (item.giftMessage) {
+                    extras.push(`Gift message: "${escapeHtml(item.giftMessage)}"`);
+                }
+
+                const photoButton = item.engravingPhotoPath
+                    ? ` <button type="button" class="admin-refund-preset" data-engraving-photo="${escapeHtml(item.engravingPhotoPath)}">View engraving photo</button>`
+                    : "";
+
+                const extrasHtml = extras.length > 0
+                    ? `<div class="admin-order-meta">${extras.join(" · ")}</div>`
+                    : "";
+
+                return `<div>${item.quantity}× ${escapeHtml(item.name)}${photoButton}${extrasHtml}</div>`;
+
+            })
+            .join("");
 
         const row = document.createElement("div");
         row.className = "admin-order-row";
@@ -2483,6 +2514,10 @@ function renderAdminOrdersList(orders) {
 
         wireAdminOrderRefundControls(row, order);
         wireAdminOrderLabelControls(row, order);
+
+        row.querySelectorAll("[data-engraving-photo]").forEach(button => {
+            button.addEventListener("click", () => openEngravingPhoto(button.dataset.engravingPhoto));
+        });
 
     });
 
@@ -3703,6 +3738,100 @@ async function buyLabel(order, rate, area, allowAnother) {
     } catch (err) {
         showAdminError(err.message || "Could not buy this label.");
         rateButtons.forEach(b => { b.disabled = false; });
+    }
+
+}
+
+
+/* =========================================
+   PHOTO ENGRAVING (owner only)
+   The listing form's "Allow photo engraving" checkbox + price, and
+   opening a customer's engraving photo from an order.
+========================================= */
+
+function setPhotoEngravingFields(allowed, price) {
+
+    const checkbox = document.getElementById("adminAllowPhotoEngraving");
+    const priceInput = document.getElementById("adminPhotoEngravingPrice");
+
+    if (!checkbox || !priceInput) {
+        return;
+    }
+
+    checkbox.checked = allowed;
+    priceInput.value = price === null || price === undefined ? "" : Number(price);
+    priceInput.disabled = !allowed;
+
+}
+
+
+function collectPhotoEngravingFields() {
+
+    const checkbox = document.getElementById("adminAllowPhotoEngraving");
+    const priceInput = document.getElementById("adminPhotoEngravingPrice");
+
+    if (!checkbox || !priceInput) {
+        return {};
+    }
+
+    return {
+        allow_photo_engraving: checkbox.checked,
+        photo_engraving_price: checkbox.checked ? Number(priceInput.value || 0) : 0
+    };
+
+}
+
+
+document.addEventListener("change", event => {
+
+    if (event.target.id === "adminAllowPhotoEngraving") {
+        const priceInput = document.getElementById("adminPhotoEngravingPrice");
+        if (priceInput) {
+            priceInput.disabled = !event.target.checked;
+        }
+    }
+
+    // While adding a NEW listing, switching category resets the default:
+    // on for cutting boards, off for everything else.
+    if (event.target.id === "adminCategory" && !editingProductId) {
+        const priceInput = document.getElementById("adminPhotoEngravingPrice");
+        setPhotoEngravingFields(event.target.value === "cutting_board", priceInput ? priceInput.value || null : null);
+    }
+
+});
+
+
+async function openEngravingPhoto(path) {
+
+    clearAdminError();
+
+    // Open the tab right away (browsers block tabs opened after a delay),
+    // then point it at the photo once the link is ready.
+    const photoWindow = window.open("", "_blank");
+
+    try {
+
+        const response = await fetch(`/api/admin/engraving-photos/url?path=${encodeURIComponent(path)}`, {
+            headers: authHeaders()
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Could not open this photo.");
+        }
+
+        if (photoWindow) {
+            photoWindow.location = data.url;
+        } else {
+            window.location.href = data.url;
+        }
+
+    } catch (err) {
+        if (photoWindow) {
+            photoWindow.close();
+        }
+        showAdminError(err.message || "Could not open this photo.");
     }
 
 }

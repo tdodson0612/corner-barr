@@ -37,6 +37,12 @@ let currentImageIndex = 0;
 let currentEngravingStyles = [];
 let selectedEngravingStyleId = null;
 
+// Photo engraving (cutting boards by default, plus any product Ashley
+// turns it on for). The photo uploads as soon as it's chosen; the cart
+// item only stores the uploaded file's name.
+let engravingPhotoPath = null;
+let engravingPhotoUploading = false;
+
 
 function getProductIdFromUrl() {
     const params = new URLSearchParams(window.location.search);
@@ -101,6 +107,8 @@ function renderProduct() {
         customizationSection.classList.remove("hidden");
         renderStyleOptions();
     }
+
+    renderPhotoEngravingSection();
 
     updatePriceDisplay();
     renderStockStatus();
@@ -310,8 +318,16 @@ function getSelectedStyleExtra() {
 }
 
 
+function getPhotoEngravingExtra() {
+    if (!engravingPhotoPath || !currentProduct.allowPhotoEngraving) {
+        return 0;
+    }
+    return Number(currentProduct.photoEngravingPrice || 0);
+}
+
+
 function updatePriceDisplay() {
-    const total = currentProduct.price + getSelectedStyleExtra();
+    const total = currentProduct.price + getSelectedStyleExtra() + getPhotoEngravingExtra();
     productDetailPrice.textContent = money(total);
 }
 
@@ -321,6 +337,13 @@ function handleAddToCart() {
     if (!currentProduct || currentProduct.stock <= 0) {
         return;
     }
+
+    if (engravingPhotoUploading) {
+        alert("Your photo is still uploading. Please wait a moment and try again.");
+        return;
+    }
+
+    const photoPath = currentProduct.allowPhotoEngraving ? engravingPhotoPath : null;
 
     const giftMessage = giftMessageCheckbox.checked ? giftMessageText.value.trim() : "";
 
@@ -336,11 +359,12 @@ function handleAddToCart() {
             category: "custom",
             engravingStyleId: selectedEngravingStyleId,
             name: currentProduct.name,
-            price: currentProduct.price + getSelectedStyleExtra(),
+            price: currentProduct.price + getSelectedStyleExtra() + getPhotoEngravingExtra(),
             quantity: 1,
             engraving: engravingTextInput.value.trim(),
             style: style ? style.name : "",
             giftMessage,
+            engravingPhotoPath: photoPath,
             // A UX-only hint so the cart drawer can warn before the
             // customer tries to raise the quantity past what's available.
             // The server re-checks the real number regardless at checkout.
@@ -356,11 +380,12 @@ function handleAddToCart() {
             productId: currentProduct.id,
             category: cartCategory,
             name: currentProduct.name,
-            price: currentProduct.price,
+            price: currentProduct.price + getPhotoEngravingExtra(),
             quantity: 1,
             engraving: "",
             style: "",
             giftMessage,
+            engravingPhotoPath: photoPath,
             availableStock: currentProduct.stock
         };
 
@@ -720,6 +745,137 @@ async function loadAndRenderSimilarProducts() {
 
     } catch (err) {
         console.error(err);
+    }
+
+}
+
+
+/* =========================================
+   PHOTO ENGRAVING
+========================================= */
+
+function renderPhotoEngravingSection() {
+
+    const existing = document.getElementById("photoEngravingSection");
+    if (existing) {
+        existing.remove();
+    }
+
+    if (!currentProduct.allowPhotoEngraving) {
+        return;
+    }
+
+    const extra = Number(currentProduct.photoEngravingPrice || 0);
+    const priceNote = extra > 0 ? ` (+${money(extra)})` : "";
+
+    const section = document.createElement("div");
+    section.id = "photoEngravingSection";
+    section.className = "form-group";
+    section.innerHTML = `
+        <label>Engrave a photo (optional)${escapeHtml(priceNote)}</label>
+        <div class="admin-drop-zone" id="engravingPhotoDropZone">
+            <img id="engravingPhotoPreview" class="admin-image-preview hidden" alt="Your photo">
+            <span id="engravingPhotoText">Add a photo of a loved one, a pet, a favorite place, or anything you'd like engraved</span>
+            <input type="file" id="engravingPhotoInput" accept="image/*" class="admin-file-input">
+        </div>
+        <div class="input-help">Clear, well-lit photos engrave best. Only Corner Barr can see your photo.</div>
+        <button type="button" class="remove-item hidden" id="engravingPhotoRemove">Remove photo</button>
+        <div id="engravingPhotoError" class="checkout-error"></div>
+    `;
+
+    productDetailPrice.parentNode.insertBefore(section, productDetailPrice);
+
+    const input = section.querySelector("#engravingPhotoInput");
+    const dropZone = section.querySelector("#engravingPhotoDropZone");
+
+    input.addEventListener("change", event => uploadEngravingPhoto(event.target.files[0]));
+
+    dropZone.addEventListener("dragover", event => {
+        event.preventDefault();
+    });
+
+    dropZone.addEventListener("drop", event => {
+        event.preventDefault();
+        uploadEngravingPhoto(event.dataTransfer.files[0]);
+    });
+
+    section.querySelector("#engravingPhotoRemove").addEventListener("click", () => {
+        engravingPhotoPath = null;
+        input.value = "";
+        showEngravingPhoto(null);
+        updatePriceDisplay();
+    });
+
+}
+
+
+function showEngravingPhoto(previewSrc) {
+
+    const preview = document.getElementById("engravingPhotoPreview");
+    const text = document.getElementById("engravingPhotoText");
+    const removeButton = document.getElementById("engravingPhotoRemove");
+
+    if (previewSrc) {
+        preview.src = previewSrc;
+        preview.classList.remove("hidden");
+        text.classList.add("hidden");
+        removeButton.classList.remove("hidden");
+    } else {
+        preview.src = "";
+        preview.classList.add("hidden");
+        text.classList.remove("hidden");
+        removeButton.classList.add("hidden");
+    }
+
+}
+
+
+async function uploadEngravingPhoto(file) {
+
+    const errorEl = document.getElementById("engravingPhotoError");
+    const text = document.getElementById("engravingPhotoText");
+
+    errorEl.textContent = "";
+
+    if (!file) {
+        return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+        errorEl.textContent = "That photo is too large. Please use one under 10 MB.";
+        return;
+    }
+
+    engravingPhotoUploading = true;
+    engravingPhotoPath = null;
+    productAddToCartButton.disabled = true;
+    showEngravingPhoto(null);
+    text.textContent = "Uploading your photo…";
+
+    try {
+
+        const response = await fetch("/api/engraving-photos", {
+            method: "POST",
+            headers: { "Content-Type": file.type || "application/octet-stream" },
+            body: file
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Could not upload your photo.");
+        }
+
+        engravingPhotoPath = data.path;
+        showEngravingPhoto(URL.createObjectURL(file));
+
+    } catch (err) {
+        errorEl.textContent = err.message || "Could not upload your photo. Please try again.";
+    } finally {
+        engravingPhotoUploading = false;
+        text.textContent = "Add a photo of a loved one, a pet, a favorite place, or anything you'd like engraved";
+        productAddToCartButton.disabled = currentProduct.stock <= 0;
+        updatePriceDisplay();
     }
 
 }
