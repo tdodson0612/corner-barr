@@ -477,7 +477,9 @@ function getOrCreateSection(id, insertAfterEl) {
 
 async function loadAndRenderReviews() {
 
-    const section = getOrCreateSection("productReviewsSection", customizationSection);
+    // Reviews go BELOW the whole product area (full width), so the price
+    // and Add to Cart button stay right under the item's options.
+    const section = getOrCreateSection("productReviewsSection", productDetail);
     section.className = "product-reviews-section";
     section.innerHTML = `<p class="checkout-note">Loading reviews…</p>`;
 
@@ -775,7 +777,7 @@ async function submitReview(myReview) {
 
 async function loadAndRenderSimilarProducts() {
 
-    const anchor = document.getElementById("productReviewsSection") || customizationSection;
+    const anchor = document.getElementById("productReviewsSection") || productDetail;
     const section = getOrCreateSection("similarProductsSection", anchor);
     section.className = "similar-products-section hidden";
 

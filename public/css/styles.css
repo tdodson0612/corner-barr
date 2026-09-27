@@ -4539,3 +4539,28 @@ textarea:focus {
     outline: 2px solid #2f4a36;
     outline-offset: 1px;
 }
+
+
+/* Product page: reviews and "You may also like" sit below the product,
+   full width, so product cards have room and all text shows */
+#productReviewsSection,
+#similarProductsSection {
+    width: 100%;
+    max-width: 1100px;
+    margin: 48px auto 0;
+    padding: 0 16px;
+    box-sizing: border-box;
+}
+
+#similarProductsSection .similar-products-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)) !important;
+    gap: 24px;
+    width: 100%;
+}
+
+#similarProductsSection .similar-products-grid > * {
+    width: auto !important;
+    min-width: 0;
+    max-width: none !important;
+}
