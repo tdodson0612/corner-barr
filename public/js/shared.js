@@ -1166,8 +1166,16 @@ function renderMyOrders(orders) {
         });
 
         const itemsSummary = (order.items || [])
-            .map(item => `${item.quantity}× ${escapeHtml(item.name)}`)
-            .join(", ");
+            .map(item => {
+                const extras = [];
+                if (item.engraving) extras.push(`Engraving: "${escapeHtml(item.engraving)}"`);
+                if (item.engravingStyle) extras.push(escapeHtml(item.engravingStyle));
+                if (item.engravingPhotoPath) extras.push("Photo engraving");
+                if (item.giftMessage) extras.push("Gift message included");
+                const extrasText = extras.length > 0 ? ` <span class="checkout-note">(${extras.join(" · ")})</span>` : "";
+                return `${item.quantity}× ${escapeHtml(item.name)}${extrasText}`;
+            })
+            .join("<br>");
 
         const statusClass = `order-status-${order.shipping_status}`;
         const statusLabel = SHIPPING_STATUS_LABELS[order.shipping_status] || order.shipping_status;

@@ -11,6 +11,7 @@ const { checkStockAvailability, decrementStockForOrder } = require("./data/inven
 const { hasUserPurchasedProduct, getMostRecentCustomerName, getProductReviewSummary } = require("./data/reviews");
 const { createNotification, notifyOrderStatusChange, notifyOrderReceived, notifyOwnerOfNewOrder, notifyWishlistersOfStockChange, notifyCustomerOfRefund } = require("./data/notifications");
 const { getSimilarProducts, getRecommendationsForUser } = require("./data/recommendations");
+const { emailOwnerNewOrder, emailCustomerOrderReceived, emailCustomerShipped } = require("./data/email");
 
 const app = express();
 app.use(express.json());
@@ -1349,6 +1350,9 @@ app.post("/api/orders/:orderID/capture", async (req, res) => {
             }
             // The owner gets notified of every new order, guest or not.
             await notifyOwnerOfNewOrder(insertedOrder);
+            // Sent in the background so the customer's checkout isn't slowed down.
+            emailOwnerNewOrder(insertedOrder).catch(err => console.error("New order email failed:", err));
+            emailCustomerOrderReceived(insertedOrder).catch(err => console.error("Order confirmation email failed:", err));
         }
 
         // If this order asked PayPal to vault the payment source, record
@@ -1446,6 +1450,20 @@ app.put("/api/admin/orders/:id", requireOwner, async (req, res) => {
         return res.status(400).json({ error: "Nothing to update." });
     }
 
+    // The Save button always sends the status, even when only the tracking
+    // number changed. Look up the current status first so customers are
+    // only notified (and emailed) when the status actually changes.
+    let previousStatus = null;
+
+    if (clean.shipping_status !== undefined) {
+        const { data: existing } = await supabaseAdmin
+            .from("orders")
+            .select("shipping_status")
+            .eq("id", req.params.id)
+            .maybeSingle();
+        previousStatus = existing ? existing.shipping_status : null;
+    }
+
     const { data, error } = await supabaseAdmin
         .from("orders")
         .update(clean)
@@ -1458,8 +1476,14 @@ app.put("/api/admin/orders/:id", requireOwner, async (req, res) => {
         return res.status(502).json({ error: "Could not update order." });
     }
 
-    if (shipping_status !== undefined) {
+    if (clean.shipping_status !== undefined && clean.shipping_status !== previousStatus) {
+
         await notifyOrderStatusChange(data);
+
+        if (data.shipping_status === "shipped") {
+            emailCustomerShipped(data).catch(err => console.error("Shipped email failed:", err));
+        }
+
     }
 
     res.json(data);
@@ -2262,6 +2286,9 @@ app.post("/api/orders/pay-with-saved", requireLogin, async (req, res) => {
             // The owner gets notified of every new order, including
             // ones paid with a saved PayPal account.
             await notifyOwnerOfNewOrder(insertedOrder);
+            // Sent in the background so the customer's checkout isn't slowed down.
+            emailOwnerNewOrder(insertedOrder).catch(err => console.error("New order email failed:", err));
+            emailCustomerOrderReceived(insertedOrder).catch(err => console.error("Order confirmation email failed:", err));
         }
 
         res.json(capture);
