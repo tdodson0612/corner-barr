@@ -1392,6 +1392,9 @@ app.post("/api/orders/:orderID/capture", async (req, res) => {
             // Sent in the background so the customer's checkout isn't slowed down.
             emailOwnerNewOrder(insertedOrder).catch(err => console.error("New order email failed:", err));
             emailCustomerOrderReceived(insertedOrder).catch(err => console.error("Order confirmation email failed:", err));
+            // Save PayPal's fee on the order (for the sales records). Runs in
+            // the background and can never affect the order itself.
+            recordPaypalFee(insertedOrder.id, insertedOrder.paypal_order_id).catch(err => console.error("Could not record PayPal fee:", err));
         }
 
         // If this order asked PayPal to vault the payment source, record
@@ -2328,6 +2331,9 @@ app.post("/api/orders/pay-with-saved", requireLogin, async (req, res) => {
             // Sent in the background so the customer's checkout isn't slowed down.
             emailOwnerNewOrder(insertedOrder).catch(err => console.error("New order email failed:", err));
             emailCustomerOrderReceived(insertedOrder).catch(err => console.error("Order confirmation email failed:", err));
+            // Save PayPal's fee on the order (for the sales records). Runs in
+            // the background and can never affect the order itself.
+            recordPaypalFee(insertedOrder.id, insertedOrder.paypal_order_id).catch(err => console.error("Could not record PayPal fee:", err));
         }
 
         res.json(capture);
@@ -2338,6 +2344,55 @@ app.post("/api/orders/pay-with-saved", requireLogin, async (req, res) => {
     }
 
 });
+
+/* =========================================
+   PAYPAL FEE (for the sales records)
+   Looks up what PayPal charged in fees for an order and saves it in
+   orders.paypal_fee. Only ever writes that one column.
+========================================= */
+
+async function recordPaypalFee(orderId, paypalOrderId) {
+
+    if (!orderId || !paypalOrderId) {
+        return;
+    }
+
+    const accessToken = await getPayPalAccessToken();
+
+    const response = await fetch(`${PAYPAL_API_BASE}/v2/checkout/orders/${encodeURIComponent(paypalOrderId)}`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+    });
+
+    const paypalOrder = await response.json();
+
+    if (!response.ok) {
+        console.error("PayPal fee lookup failed for order", orderId, paypalOrder);
+        return;
+    }
+
+    const captures = (paypalOrder.purchase_units || []).flatMap(unit => unit?.payments?.captures || []);
+
+    const fees = captures
+        .map(capture => capture?.seller_receivable_breakdown?.paypal_fee?.value)
+        .filter(value => value !== undefined && value !== null && Number.isFinite(Number(value)));
+
+    if (fees.length === 0) {
+        console.warn("PayPal didn't report a fee for order", orderId);
+        return;
+    }
+
+    const totalFee = Math.round(fees.reduce((sum, value) => sum + Number(value), 0) * 100) / 100;
+
+    const { error } = await supabaseAdmin
+        .from("orders")
+        .update({ paypal_fee: totalFee })
+        .eq("id", orderId);
+
+    if (error) {
+        console.error("Could not save PayPal fee for order", orderId, error);
+    }
+
+}
 
 /* =========================================
    REFUND SYNC (from PayPal webhook)
