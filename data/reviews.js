@@ -53,7 +53,8 @@ async function getProductReviewSummary(productId) {
     const { data, error } = await supabaseAdmin
         .from("reviews")
         .select("rating")
-        .eq("product_id", productId);
+        .eq("product_id", productId)
+        .eq("status", "approved");
 
     if (error) {
         console.error("Could not load review summary:", error);

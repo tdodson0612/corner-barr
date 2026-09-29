@@ -1070,6 +1070,11 @@ function updateOwnerUI() {
     manageShopButton.classList.toggle("hidden", currentRole !== "owner");
     updateNotificationUI();
     updateManageShopOrderBadge();
+
+    // Product pages: re-draw reviews now that we know who's logged in.
+    if (typeof refreshReviewsForAuth === "function") {
+        refreshReviewsForAuth();
+    }
 }
 
 
@@ -2399,7 +2404,16 @@ function switchAdminTab(tab) {
     const showingOrders = tab === "orders";
     const showingShipping = tab === "shipping";
     const showingCategories = tab === "categories";
-    const showingListings = !showingOrders && !showingShipping && !showingCategories;
+    const showingReviews = tab === "reviews";
+    const showingListings = !showingOrders && !showingShipping && !showingCategories && !showingReviews;
+
+    const reviewsTab = document.getElementById("adminTabReviews");
+    const reviewsSection = document.getElementById("adminReviewsSection");
+
+    if (reviewsTab && reviewsSection) {
+        reviewsTab.classList.toggle("active", showingReviews);
+        reviewsSection.classList.toggle("hidden", !showingReviews);
+    }
 
     const categoriesTab = document.getElementById("adminTabCategories");
     const categoriesSection = document.getElementById("adminCategoriesSection");
@@ -2437,6 +2451,13 @@ function switchAdminTab(tab) {
         loadAdminCategories().catch(err => {
             console.error(err);
             showAdminError("Could not load categories.");
+        });
+    }
+
+    if (showingReviews) {
+        loadAdminReviews().catch(err => {
+            console.error(err);
+            showAdminError("Could not load reviews.");
         });
     }
 
@@ -3073,6 +3094,11 @@ function wireSharedEventListeners() {
     adminTabListings.addEventListener("click", () => switchAdminTab("listings"));
     adminTabOrders.addEventListener("click", () => switchAdminTab("orders"));
     adminTabShipping.addEventListener("click", () => switchAdminTab("shipping"));
+
+    const adminTabReviews = document.getElementById("adminTabReviews");
+    if (adminTabReviews) {
+        adminTabReviews.addEventListener("click", () => switchAdminTab("reviews"));
+    }
 
     const adminTabCategories = document.getElementById("adminTabCategories");
     if (adminTabCategories) {
@@ -4216,6 +4242,140 @@ async function deleteAdminCategory(category) {
     try {
         await sendCategoryRequest(`/api/admin/categories/${encodeURIComponent(category.key)}`, "DELETE");
         await afterCategoryChange();
+    } catch (err) {
+        showAdminError(err.message);
+    }
+
+}
+
+
+/* =========================================
+   ADMIN — REVIEWS TAB (owner only)
+   In-store reviews wait here for approval. Any review can be removed.
+========================================= */
+
+async function loadAdminReviews() {
+
+    const response = await fetch("/api/admin/reviews", { headers: authHeaders() });
+    const reviews = await response.json();
+
+    if (!response.ok) {
+        throw new Error(reviews.error || "Could not load reviews.");
+    }
+
+    renderAdminReviews(reviews);
+
+}
+
+function adminReviewCardMarkup(review) {
+
+    const date = new Date(review.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    const product = review.products && review.products.name ? review.products.name : "a product";
+    const isInStore = review.source === "in_store";
+    const isPending = review.status === "pending";
+
+    const who = isInStore
+        ? `${escapeHtml(review.reviewer_name || "")}${review.is_anonymous ? " (posting anonymously)" : ""} · ${escapeHtml(review.guest_email || "")}`
+        : escapeHtml(review.reviewer_name || "Customer");
+
+    const details = [
+        isInStore ? "In-store purchase" : "Verified online order",
+        review.purchase_note ? `Bought at: ${escapeHtml(review.purchase_note)}` : "",
+        date
+    ].filter(Boolean).join(" · ");
+
+    return `
+        <div style="border:1px solid #e0d9cc; background:#fff; padding:14px; margin-bottom:12px;" data-review-card="${review.id}">
+            <div><strong>${escapeHtml(product)}</strong> · ${"★".repeat(review.rating)}${"☆".repeat(5 - review.rating)}</div>
+            <div class="checkout-note">${who}</div>
+            <div class="checkout-note">${details}</div>
+            ${review.review_text ? `<p style="margin:8px 0;">${escapeHtml(review.review_text)}</p>` : ""}
+            ${review.photo_url ? `<a href="${escapeHtml(review.photo_url)}" target="_blank" rel="noopener noreferrer"><img src="${escapeHtml(review.photo_url)}" alt="Review photo" style="max-width:140px; max-height:140px; object-fit:cover; display:block; margin:8px 0;"></a>` : ""}
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                ${isPending ? `<button type="button" class="admin-order-save" data-approve-review="${review.id}">Approve</button>` : ""}
+                <button type="button" class="remove-item" data-remove-review="${review.id}">Remove</button>
+            </div>
+        </div>
+    `;
+
+}
+
+function renderAdminReviews(reviews) {
+
+    const pendingList = document.getElementById("adminPendingReviewsList");
+    const publishedList = document.getElementById("adminPublishedReviewsList");
+
+    if (!pendingList || !publishedList) {
+        return;
+    }
+
+    const pending = reviews.filter(r => r.status === "pending");
+    const published = reviews.filter(r => r.status !== "pending");
+
+    pendingList.innerHTML = pending.length > 0
+        ? pending.map(adminReviewCardMarkup).join("")
+        : `<p class="checkout-note">Nothing waiting for approval.</p>`;
+
+    publishedList.innerHTML = published.length > 0
+        ? published.map(adminReviewCardMarkup).join("")
+        : `<p class="checkout-note">No reviews on the site yet.</p>`;
+
+    document.querySelectorAll("[data-approve-review]").forEach(button => {
+        button.addEventListener("click", () => approveAdminReview(button.dataset.approveReview));
+    });
+
+    document.querySelectorAll("[data-remove-review]").forEach(button => {
+        button.addEventListener("click", () => removeAdminReview(button.dataset.removeReview));
+    });
+
+}
+
+async function approveAdminReview(reviewId) {
+
+    clearAdminError();
+
+    try {
+
+        const response = await fetch(`/api/admin/reviews/${encodeURIComponent(reviewId)}/approve`, {
+            method: "PUT",
+            headers: authHeaders()
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Could not approve this review.");
+        }
+
+        await loadAdminReviews();
+
+    } catch (err) {
+        showAdminError(err.message);
+    }
+
+}
+
+async function removeAdminReview(reviewId) {
+
+    clearAdminError();
+
+    if (!confirm("Remove this review? It will be deleted from the site. This can't be undone.")) {
+        return;
+    }
+
+    try {
+
+        const response = await fetch(`/api/reviews/${encodeURIComponent(reviewId)}`, {
+            method: "DELETE",
+            headers: authHeaders()
+        });
+
+        if (!response.ok) {
+            throw new Error("Could not remove this review.");
+        }
+
+        await loadAdminReviews();
+
     } catch (err) {
         showAdminError(err.message);
     }

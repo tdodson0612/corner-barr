@@ -507,6 +507,8 @@ async function loadAndRenderReviews() {
 
 function renderReviewsSection(section) {
 
+    reviewsRenderedForAuth = currentAuthKey();
+
     const { average, count, distribution } = currentReviewSummary;
 
     const distributionRows = [5, 4, 3, 2, 1].map(star => {
@@ -557,10 +559,13 @@ function renderReviewsSection(section) {
 
         <div id="reviewFormContainer"></div>
 
+        <div id="inStoreReviewContainer"></div>
+
         <div class="reviews-list">${reviewsListMarkup}</div>
     `;
 
     renderReviewFormArea(myReview);
+    renderInStoreReviewArea();
     attachReviewRowEvents(section);
 
 }
@@ -568,16 +573,21 @@ function renderReviewsSection(section) {
 function reviewRowMarkup(review, myReview) {
 
     const isMine = myReview && myReview.id === review.id;
+    const isOwner = typeof currentRole !== "undefined" && currentRole === "owner";
+    const sourceLabel = review.source === "in_store"
+        ? `<span class="checkout-note" style="margin-left:8px;">Purchased in store</span>`
+        : "";
 
     return `
         <div class="review-row">
             <div class="review-row-top">
-                <span class="review-row-name">${escapeHtml(review.reviewer_name || "Customer")}</span>
+                <span class="review-row-name">${escapeHtml(review.reviewer_name || "Customer")}${sourceLabel}</span>
                 ${starDisplayMarkup(review.rating)}
             </div>
             ${review.review_text ? `<p class="review-row-text">${escapeHtml(review.review_text)}</p>` : ""}
             ${review.photo_url ? `<img class="review-row-photo" src="${escapeHtml(review.photo_url)}" alt="Customer photo">` : ""}
             ${isMine ? `<button type="button" class="remove-item" data-delete-review="${review.id}">Delete my review</button>` : ""}
+            ${isOwner && !isMine ? `<button type="button" class="remove-item" data-owner-remove-review="${review.id}">Remove review</button>` : ""}
         </div>
     `;
 
@@ -587,6 +597,55 @@ function attachReviewRowEvents(section) {
     section.querySelectorAll("[data-delete-review]").forEach(button => {
         button.addEventListener("click", () => deleteMyReview(button.dataset.deleteReview));
     });
+    section.querySelectorAll("[data-owner-remove-review]").forEach(button => {
+        button.addEventListener("click", () => ownerRemoveReview(button.dataset.ownerRemoveReview));
+    });
+}
+
+// Owner only: take any review off the site.
+async function ownerRemoveReview(reviewId) {
+
+    if (!confirm("Remove this review from the site? This can't be undone.")) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/reviews/${reviewId}`, { method: "DELETE", headers: authHeaders() });
+        if (!response.ok) {
+            throw new Error("Could not remove this review.");
+        }
+        loadAndRenderReviews();
+    } catch (err) {
+        console.error(err);
+        alert("Could not remove this review right now.");
+    }
+
+}
+
+// Called by shared.js once we know who's logged in (it can finish after
+// the reviews first load), so the right buttons and forms show.
+let reviewsRenderedForAuth = null;
+
+function currentAuthKey() {
+    const userId = currentSession && currentSession.user ? currentSession.user.id : "guest";
+    const role = typeof currentRole !== "undefined" ? currentRole : "customer";
+    return `${userId}|${role}`;
+}
+
+function refreshReviewsForAuth() {
+
+    // Only re-draw if who's logged in actually changed (this also runs on
+    // routine login refreshes, which shouldn't wipe a half-typed review).
+    if (currentAuthKey() === reviewsRenderedForAuth) {
+        return;
+    }
+
+    const section = document.getElementById("productReviewsSection");
+
+    if (currentProduct && section && Array.isArray(currentReviews) && currentReviewSummary) {
+        renderReviewsSection(section);
+    }
+
 }
 
 async function deleteMyReview(reviewId) {
@@ -767,6 +826,236 @@ async function submitReview(myReview) {
         errorEl.classList.add("visible");
     } finally {
         button.disabled = false;
+    }
+
+}
+
+
+/* =========================================
+   IN-STORE REVIEWS
+   For people who bought in person. No login needed; the review shows
+   up after the owner approves it.
+========================================= */
+
+let inStoreRating = 0;
+let inStorePhotoFile = null;
+
+function renderInStoreReviewArea() {
+
+    const container = document.getElementById("inStoreReviewContainer");
+
+    if (!container) {
+        return;
+    }
+
+    inStoreRating = 0;
+    inStorePhotoFile = null;
+
+    container.innerHTML = `
+        <button type="button" class="secondary-button" id="inStoreReviewToggle" style="margin:12px 0;">
+            Bought this at our shop or a market? Leave a review
+        </button>
+        <div class="review-form hidden" id="inStoreReviewForm">
+            <h3>Review an in-store purchase</h3>
+            <p class="checkout-note">Reviews from in-store purchases appear after a quick check by Corner Barr.</p>
+
+            <div class="form-group">
+                <label for="inStoreName">Your name</label>
+                <input type="text" id="inStoreName" maxlength="80" autocomplete="name">
+            </div>
+
+            <div class="form-group">
+                <label for="inStoreEmail">Your email</label>
+                <input type="email" id="inStoreEmail" maxlength="200" autocomplete="email">
+                <div class="input-help">Never shown publicly. Only Corner Barr sees it.</div>
+            </div>
+
+            <div class="form-group">
+                <label for="inStorePurchaseNote">Where did you buy it? (optional)</label>
+                <input type="text" id="inStorePurchaseNote" maxlength="150" placeholder="e.g. Medford Farmers Market, September">
+            </div>
+
+            <div class="form-group">
+                <label>Your rating</label>
+                <div class="review-star-input" id="inStoreStarInput"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="inStoreText">Your review</label>
+                <textarea id="inStoreText" maxlength="2000" placeholder="What did you think?"></textarea>
+            </div>
+
+            <div class="admin-drop-zone" id="inStorePhotoDropZone">
+                <img id="inStorePhotoPreview" class="admin-image-preview hidden" alt="Your photo">
+                <span id="inStorePhotoText">Add a photo (optional)</span>
+                <input type="file" id="inStorePhotoInput" accept="image/*" class="admin-file-input">
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="inStoreAnonymous">
+                    <span>Post my review anonymously (your name won't be shown)</span>
+                </label>
+            </div>
+
+            <div style="position:absolute; left:-10000px; width:1px; height:1px; overflow:hidden;" aria-hidden="true">
+                <label for="inStoreWebsite">Leave this empty</label>
+                <input type="text" id="inStoreWebsite" tabindex="-1" autocomplete="off">
+            </div>
+
+            <div id="inStoreError" class="checkout-error"></div>
+            <button type="button" class="primary-button" id="inStoreSubmit">Send Review</button>
+        </div>
+    `;
+
+    container.querySelector("#inStoreReviewToggle").addEventListener("click", () => {
+        container.querySelector("#inStoreReviewForm").classList.toggle("hidden");
+    });
+
+    renderInStoreStars();
+
+    const photoInput = container.querySelector("#inStorePhotoInput");
+    const dropZone = container.querySelector("#inStorePhotoDropZone");
+
+    photoInput.addEventListener("change", event => setInStorePhoto(event.target.files[0]));
+    dropZone.addEventListener("dragover", event => event.preventDefault());
+    dropZone.addEventListener("drop", event => {
+        event.preventDefault();
+        setInStorePhoto(event.dataTransfer.files[0]);
+    });
+
+    container.querySelector("#inStoreSubmit").addEventListener("click", submitInStoreReview);
+
+}
+
+function renderInStoreStars() {
+
+    const starInput = document.getElementById("inStoreStarInput");
+
+    starInput.innerHTML = [1, 2, 3, 4, 5].map(star => `
+        <button type="button" class="review-star-button ${star <= inStoreRating ? "active" : ""}" data-star="${star}" aria-label="${star} star">★</button>
+    `).join("");
+
+    starInput.querySelectorAll("[data-star]").forEach(button => {
+        button.addEventListener("click", () => {
+            inStoreRating = Number(button.dataset.star);
+            renderInStoreStars();
+        });
+    });
+
+}
+
+function setInStorePhoto(file) {
+
+    const errorEl = document.getElementById("inStoreError");
+    errorEl.textContent = "";
+
+    if (!file) {
+        return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+        errorEl.textContent = "That photo is too large. Please use one under 10 MB.";
+        errorEl.classList.add("visible");
+        return;
+    }
+
+    inStorePhotoFile = file;
+
+    const preview = document.getElementById("inStorePhotoPreview");
+    preview.src = URL.createObjectURL(file);
+    preview.classList.remove("hidden");
+    document.getElementById("inStorePhotoText").classList.add("hidden");
+
+}
+
+async function submitInStoreReview() {
+
+    const errorEl = document.getElementById("inStoreError");
+    const button = document.getElementById("inStoreSubmit");
+
+    errorEl.textContent = "";
+    errorEl.classList.remove("visible");
+
+    const showError = message => {
+        errorEl.textContent = message;
+        errorEl.classList.add("visible");
+    };
+
+    const name = document.getElementById("inStoreName").value.trim();
+    const email = document.getElementById("inStoreEmail").value.trim();
+    const reviewText = document.getElementById("inStoreText").value.trim();
+
+    if (!name) {
+        return showError("Please enter your name.");
+    }
+    if (!email || !email.includes("@")) {
+        return showError("Please enter a valid email address.");
+    }
+    if (inStoreRating < 1) {
+        return showError("Please choose a star rating.");
+    }
+    if (reviewText.length < 3) {
+        return showError("Please write a few words about the item.");
+    }
+
+    button.disabled = true;
+    button.textContent = "Sending…";
+
+    try {
+
+        let photoPath = null;
+
+        if (inStorePhotoFile) {
+
+            const uploadResponse = await fetch("/api/review-photos", {
+                method: "POST",
+                headers: { "Content-Type": inStorePhotoFile.type || "application/octet-stream" },
+                body: inStorePhotoFile
+            });
+
+            const uploadData = await uploadResponse.json();
+
+            if (!uploadResponse.ok) {
+                throw new Error(uploadData.error || "Could not upload your photo.");
+            }
+
+            photoPath = uploadData.path;
+
+        }
+
+        const response = await fetch(`/api/products/${encodeURIComponent(currentProduct.id)}/in-store-reviews`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                name,
+                email,
+                purchase_note: document.getElementById("inStorePurchaseNote").value.trim(),
+                rating: inStoreRating,
+                review_text: reviewText,
+                is_anonymous: document.getElementById("inStoreAnonymous").checked,
+                photo_path: photoPath,
+                website: document.getElementById("inStoreWebsite").value
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Could not send your review.");
+        }
+
+        document.getElementById("inStoreReviewContainer").innerHTML = `
+            <div class="review-form">
+                <h3>Thank you!</h3>
+                <p class="checkout-note">We got your review. It will appear here once Corner Barr has had a quick look.</p>
+            </div>
+        `;
+
+    } catch (err) {
+        showError(err.message || "Could not send your review. Please try again.");
+        button.disabled = false;
+        button.textContent = "Send Review";
     }
 
 }

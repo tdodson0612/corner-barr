@@ -28,6 +28,7 @@
                 <button type="button" class="admin-tab" id="adminTabOrders">Orders</button>
                 <button type="button" class="admin-tab" id="adminTabShipping">Shipping</button>
                 <button type="button" class="admin-tab" id="adminTabCategories">Categories</button>
+                <button type="button" class="admin-tab" id="adminTabReviews">Reviews</button>
             </div>
 
             <div
@@ -197,6 +198,22 @@
                 <h3>All Orders</h3>
 
                 <div id="adminOrdersList"></div>
+
+            </div>
+
+            <div class="admin-shipping-section hidden" id="adminReviewsSection">
+
+                <h3>Waiting for Approval</h3>
+                <p class="checkout-note">
+                    Reviews from in-store purchases show up here first. Approve the ones
+                    you want on the site. The reviewer's email is only visible to you.
+                </p>
+
+                <div id="adminPendingReviewsList"></div>
+
+                <h3>On the Site</h3>
+
+                <div id="adminPublishedReviewsList"></div>
 
             </div>
 

@@ -525,16 +525,34 @@ app.get("/api/recommendations", async (req, res) => {
    REVIEWS (public read, logged-in customers write their own)
 ========================================= */
 
+// Review photos must be ones uploaded to the site's own review-photos
+// storage, so a review can't show a picture from anywhere else online.
+function cleanReviewPhotoUrl(photoUrl) {
+
+    if (typeof photoUrl !== "string" || !photoUrl.trim()) {
+        return null;
+    }
+
+    const allowedPrefix = `${process.env.SUPABASE_URL}/storage/v1/object/public/review-photos/`;
+    const url = photoUrl.trim();
+
+    return url.startsWith(allowedPrefix) && !url.includes("..") ? url : null;
+
+}
+
 app.get("/api/products/:id/reviews", async (req, res) => {
 
     try {
 
         const summary = await getProductReviewSummary(req.params.id);
 
+        // Only approved reviews, and only public details (never a guest
+        // reviewer's email or where they bought it).
         const { data, error } = await supabaseAdmin
             .from("reviews")
-            .select("*")
+            .select("id, product_id, user_id, reviewer_name, rating, review_text, photo_url, created_at, updated_at, source, is_anonymous")
             .eq("product_id", req.params.id)
+            .eq("status", "approved")
             .order("created_at", { ascending: false });
 
         if (error) {
@@ -542,7 +560,12 @@ app.get("/api/products/:id/reviews", async (req, res) => {
             return res.status(502).json({ error: "Could not load reviews." });
         }
 
-        res.json({ summary, reviews: data });
+        const reviews = data.map(review => ({
+            ...review,
+            reviewer_name: review.is_anonymous ? "Anonymous" : review.reviewer_name
+        }));
+
+        res.json({ summary, reviews });
 
     } catch (err) {
         console.error(err);
@@ -584,7 +607,7 @@ app.post("/api/products/:id/reviews", requireLogin, async (req, res) => {
                 reviewer_name: reviewerName,
                 rating: ratingNumber,
                 review_text: typeof review_text === "string" ? review_text.trim().substring(0, 2000) : null,
-                photo_url: typeof photo_url === "string" && photo_url.trim() ? photo_url.trim() : null
+                photo_url: cleanReviewPhotoUrl(photo_url)
             })
             .select()
             .single();
@@ -627,7 +650,7 @@ app.put("/api/reviews/:id", requireLogin, async (req, res) => {
         }
 
         if (photo_url !== undefined) {
-            clean.photo_url = typeof photo_url === "string" && photo_url.trim() ? photo_url.trim() : null;
+            clean.photo_url = cleanReviewPhotoUrl(photo_url);
         }
 
         clean.updated_at = new Date().toISOString();
@@ -2594,6 +2617,7 @@ require("./data/labels")(app, { requireOwner, supabaseAdmin });
 require("./data/engraving")(app, { express, requireOwner, supabaseAdmin });
 require("./data/seo")(app, { supabaseAdmin });
 registerCategoryRoutes(app, { requireOwner, supabaseAdmin, helpers: categoryHelpers });
+require("./data/guestReviews")(app, { express, requireOwner, supabaseAdmin, createNotification });
 
 app.listen(PORT, () => {
     console.log(`Corner Barr server running at http://localhost:${PORT}`);
