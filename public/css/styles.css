@@ -4616,3 +4616,238 @@ textarea:focus {
         display: block;
     }
 }
+
+
+/* =========================================
+   PHONES & SMALL TABLETS (850px and narrower)
+   Everything below only applies to narrow screens.
+   Computer screens are not affected.
+========================================= */
+
+@media (max-width: 850px) {
+
+    /* Never allow sideways scrolling */
+    html,
+    body {
+        overflow-x: hidden;
+    }
+
+    /* Header: not pinned on phones (it is taller here) */
+    .site-header {
+        position: relative;
+    }
+
+    html {
+        scroll-padding-top: 20px;
+    }
+
+    .shop-category-nav {
+        top: 0;
+    }
+
+    /* Header rows: [logo ... Account Cart] then [Shop Our Story Search] */
+    .header-inner {
+        position: relative;
+        width: 94%;
+        min-height: 0;
+        padding: 10px 0;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .header-actions {
+        display: contents;
+    }
+
+    .brand {
+        order: 1;
+        flex-shrink: 0;
+        margin-right: auto;
+    }
+
+    #accountButton            { order: 2; }
+    .cart-button              { order: 3; }
+
+    /* Invisible line break: everything after it starts a new row */
+    .header-inner::after {
+        content: "";
+        order: 4;
+        flex-basis: 100%;
+        height: 0;
+        margin-top: -8px;
+    }
+
+    .notification-bell-button { order: 5; }
+    #manageShopButton         { order: 6; }
+
+    .main-nav {
+        display: flex;
+        order: 7;
+        gap: 8px;
+        font-size: 11px;
+        letter-spacing: 1px;
+    }
+
+    .main-nav a {
+        display: flex;
+        align-items: center;
+        height: 40px;
+        padding: 0 12px;
+        white-space: nowrap;
+    }
+
+    .header-search {
+        order: 8;
+        flex: 1 1 150px;
+        min-width: 150px;
+        max-width: none;
+    }
+
+    .header-search-input,
+    .header-search-clear,
+    .notification-bell-button {
+        height: 40px;
+    }
+
+    .notification-bell-button {
+        width: 40px;
+        flex-shrink: 0;
+    }
+
+    #accountButton,
+    #manageShopButton,
+    .cart-button {
+        height: 40px;
+        padding: 0 11px;
+        font-size: 11px;
+        letter-spacing: 1px;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    #manageShopButton {
+        display: flex;
+        align-items: center;
+    }
+
+    .cart-button {
+        gap: 7px;
+    }
+
+    .cart-count {
+        width: 22px;
+        height: 22px;
+    }
+
+    /* Owner's notification list: full width under the header */
+    .notification-panel {
+        top: 100%;
+        right: 0;
+        width: 100%;
+        max-width: 380px;
+    }
+
+    /* Home page photos: faded (50%) in the background on the sides,
+       same idea as the computer version. Text stays on top. */
+    .home-bg-photos {
+        display: block;
+    }
+
+    .home-bg-photo {
+        width: clamp(90px, 27vw, 170px);
+        border-radius: 5px;
+        box-shadow: none;
+    }
+
+    /* Kept in the top part of the page (hero + story text),
+       so none hide behind the booth photo */
+    .hbp-left-1  { left: 8px;  top: 3%; }
+    .hbp-left-2  { left: 8px;  top: 17%; }
+    .hbp-left-3  { left: 8px;  top: 31%; }
+    .hbp-right-1 { right: 8px; top: 9%; }
+    .hbp-right-2 { right: 8px; top: 24%; }
+    .hbp-right-3 { right: 8px; top: 38%; }
+}
+
+@media (max-width: 560px) {
+
+    .header-inner {
+        width: 94%;
+    }
+
+    .brand {
+        gap: 9px;
+        padding: 7px 10px;
+    }
+
+    .brand-name {
+        max-width: 95px;
+        font-size: 18px;
+        letter-spacing: 1.5px;
+    }
+
+    .brand-tagline {
+        font-size: 6.5px;
+        letter-spacing: 1.5px;
+    }
+
+    .brand-mark {
+        width: 30px;
+        height: 30px;
+    }
+
+    .brand-mark span {
+        font-size: 20px;
+    }
+
+    #accountButton,
+    #manageShopButton,
+    .cart-button {
+        padding: 0 9px;
+        letter-spacing: 0.8px;
+    }
+
+    .main-nav a {
+        padding: 0 10px;
+    }
+}
+
+@media (max-width: 350px) {
+
+    .brand {
+        gap: 7px;
+        padding: 6px 8px;
+    }
+
+    .brand-mark {
+        width: 26px;
+        height: 26px;
+    }
+
+    #accountButton,
+    #manageShopButton,
+    .cart-button {
+        padding: 0 7px;
+        font-size: 10px;
+    }
+}
+
+@media (max-width: 350px) {
+
+    .brand {
+        gap: 7px;
+        padding: 6px 8px;
+    }
+
+    .brand-mark {
+        width: 26px;
+        height: 26px;
+    }
+
+    #accountButton,
+    #manageShopButton,
+    .cart-button {
+        padding: 0 7px;
+        font-size: 10px;
+    }
+}
