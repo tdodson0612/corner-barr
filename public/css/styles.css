@@ -4851,3 +4851,32 @@ textarea:focus {
         font-size: 10px;
     }
 }
+
+
+/* =========================================
+   LAPTOP SCREENS (851px to 1499px wide)
+   Home page faded photos, like the big-screen version.
+   Phones (850px and under) and big screens (1500px and up)
+   are not affected.
+========================================= */
+
+@media (min-width: 851px) and (max-width: 1499px) {
+
+    .home-bg-photos {
+        display: block;
+    }
+
+    .home-bg-photo {
+        width: clamp(100px, 11vw, 160px);
+    }
+
+    /* Left side: same spots as the big-screen version */
+    .hbp-left-1  { left: 12px; top: 8%; }
+    .hbp-left-2  { left: 12px; top: 38%; }
+    .hbp-left-3  { left: 12px; top: 70%; }
+
+    /* Right side: kept clear of the booth photo so none are hidden */
+    .hbp-right-1 { right: 12px; top: 10%; }
+    .hbp-right-2 { right: 12px; top: 27%; }
+    .hbp-right-3 { right: 12px; top: auto; bottom: 1.5%; }
+}
