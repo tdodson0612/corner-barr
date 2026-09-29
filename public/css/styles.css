@@ -4572,3 +4572,47 @@ textarea:focus {
         grid-template-columns: repeat(var(--shop-category-count, 5), 1fr);
     }
 }
+
+
+/* Home page: decorative background photos in the side margins.
+   Wide screens only (1500px+), so they never cover text. */
+.home-main {
+    position: relative;
+}
+
+.home-bg-photos {
+    display: none;
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.home-main .hero-content,
+.home-main .about-inner {
+    position: relative;
+    z-index: 2;
+}
+
+.home-bg-photo {
+    position: absolute;
+    width: clamp(110px, calc((100vw - 1200px) / 2 - 36px), 230px);
+    height: auto;
+    opacity: 0.5;
+    border-radius: 6px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+}
+
+.hbp-left-1  { left: 18px;  top: 8%; }
+.hbp-left-2  { left: 18px;  top: 38%; }
+.hbp-left-3  { left: 18px;  top: 70%; }
+.hbp-right-1 { right: 18px; top: 14%; }
+.hbp-right-2 { right: 18px; top: 51%; }
+.hbp-right-3 { right: 18px; top: 82%; }
+
+@media (min-width: 1500px) {
+    .home-bg-photos {
+        display: block;
+    }
+}
