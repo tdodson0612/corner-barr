@@ -125,7 +125,8 @@ function renderProduct() {
     productLoading.classList.add("hidden");
     productDetail.classList.remove("hidden");
 
-    document.title = `Corner Barr | ${currentProduct.name}`;
+    document.title = `${currentProduct.name} | Corner Barr`;
+    updateProductSeo();
 
     currentImageIndex = 0;
     renderGalleryImage();
@@ -149,6 +150,115 @@ function renderProduct() {
     trackRecentlyViewed(currentProduct.id);
     loadAndRenderReviews();
     loadAndRenderSimilarProducts();
+
+}
+
+
+// Search engine info for this product: page description, link preview,
+// and a hidden "Product" block Google reads (name, photo, price, stock).
+// None of this changes what shoppers see on the page.
+function setHeadTag(selector, create, attribute, value) {
+    let tag = document.head.querySelector(selector);
+    if (!tag) {
+        tag = create();
+        document.head.appendChild(tag);
+    }
+    tag.setAttribute(attribute, value);
+}
+
+function updateProductSeo() {
+
+    try {
+
+        const pageUrl = `https://cornerbarr.com/product.html?id=${encodeURIComponent(currentProduct.id)}`;
+        const cleanText = String(currentProduct.description || "").replace(/\s+/g, " ").trim();
+        const summary = (cleanText.length > 155 ? cleanText.slice(0, 152).trim() + "..." : cleanText)
+            || `${currentProduct.name}, handmade by Corner Barr in Central Point, Oregon.`;
+
+        const photos = (Array.isArray(currentImages) && currentImages.length > 0)
+            ? currentImages
+            : (currentProduct.image_url ? [currentProduct.image_url] : []);
+
+        const meta = (key, isProperty) => () => {
+            const tag = document.createElement("meta");
+            tag.setAttribute(isProperty ? "property" : "name", key);
+            return tag;
+        };
+
+        setHeadTag('meta[name="description"]', meta("description"), "content", summary);
+        setHeadTag('meta[property="og:title"]', meta("og:title", true), "content", `${currentProduct.name} | Corner Barr`);
+        setHeadTag('meta[property="og:description"]', meta("og:description", true), "content", summary);
+        setHeadTag('meta[property="og:url"]', meta("og:url", true), "content", pageUrl);
+        if (photos[0]) {
+            setHeadTag('meta[property="og:image"]', meta("og:image", true), "content", photos[0]);
+        }
+        setHeadTag('link[rel="canonical"]', () => {
+            const link = document.createElement("link");
+            link.setAttribute("rel", "canonical");
+            return link;
+        }, "href", pageUrl);
+
+        // Price and stock: products with options (like Size) list their
+        // lowest and highest option price.
+        const options = getProductOptions();
+        const optionList = options ? options.options : [];
+        const inStock = options
+            ? optionList.some(o => Number(o.stock) > 0)
+            : Number(currentProduct.stock) > 0;
+        const availability = inStock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock";
+
+        let offers;
+        const optionPrices = optionList.map(o => Number(o.price)).filter(p => Number.isFinite(p) && p > 0);
+
+        if (optionPrices.length > 1) {
+            offers = {
+                "@type": "AggregateOffer",
+                priceCurrency: "USD",
+                lowPrice: Math.min(...optionPrices).toFixed(2),
+                highPrice: Math.max(...optionPrices).toFixed(2),
+                offerCount: optionPrices.length,
+                availability
+            };
+        } else {
+            const price = optionPrices.length === 1 ? optionPrices[0] : Number(currentProduct.price);
+            offers = {
+                "@type": "Offer",
+                priceCurrency: "USD",
+                price: Number.isFinite(price) ? price.toFixed(2) : undefined,
+                availability,
+                url: pageUrl,
+                seller: { "@type": "Organization", name: "Corner Barr" }
+            };
+        }
+
+        const data = {
+            "@context": "https://schema.org",
+            "@type": "Product",
+            name: currentProduct.name,
+            description: cleanText || summary,
+            category: currentProduct.category || undefined,
+            brand: { "@type": "Brand", name: "Corner Barr" },
+            url: pageUrl,
+            offers
+        };
+
+        if (photos.length > 0) {
+            data.image = photos;
+        }
+
+        let script = document.getElementById("productStructuredData");
+        if (!script) {
+            script = document.createElement("script");
+            script.type = "application/ld+json";
+            script.id = "productStructuredData";
+            document.head.appendChild(script);
+        }
+        script.textContent = JSON.stringify(data).replace(/</g, "\\u003c");
+
+    } catch (err) {
+        // Search info is a bonus. Never let it break the product page.
+        console.error("Could not add search info for this product:", err);
+    }
 
 }
 
