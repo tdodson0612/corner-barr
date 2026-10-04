@@ -170,6 +170,39 @@ async function loadOrder(supabaseAdmin, orderId) {
 
 }
 
+// Shippo sometimes finishes making the label file a moment after the
+// label is bought, so the link can come back empty. This asks Shippo
+// for the link again. Returns "" if it still isn't ready (never throws).
+const TRANSACTION_ID_PATTERN = /^[A-Za-z0-9]{10,64}$/;
+
+async function fetchLabelUrl(transactionId, attempts, delayMs) {
+
+    if (!TRANSACTION_ID_PATTERN.test(String(transactionId || ""))) {
+        return "";
+    }
+
+    for (let attempt = 0; attempt < attempts; attempt++) {
+
+        if (attempt > 0) {
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+
+        try {
+            const transaction = await shippoRequest("GET", `/transactions/${transactionId}`);
+            const url = typeof transaction?.label_url === "string" ? transaction.label_url.trim() : "";
+            if (/^https:\/\//i.test(url)) {
+                return url;
+            }
+        } catch (err) {
+            console.error("Could not re-check label link with Shippo:", transactionId, err.message);
+        }
+
+    }
+
+    return "";
+
+}
+
 function sendError(res, err, fallbackMessage) {
     if (err instanceof LabelError) {
         return res.status(err.status).json({ error: err.message, code: err.code });
@@ -298,11 +331,17 @@ module.exports = function registerLabelRoutes(app, { requireOwner, supabaseAdmin
 
             // ---- Money has been spent. Never throw past this line. ----
 
+            let labelUrl = typeof transaction.label_url === "string" ? transaction.label_url.trim() : "";
+
+            if (!labelUrl) {
+                labelUrl = await fetchLabelUrl(transaction.object_id, 3, 1500);
+            }
+
             const label = {
                 carrier: rate.provider,
                 service: rate.servicelevel?.name || "",
                 tracking_number: transaction.tracking_number || "",
-                label_url: transaction.label_url || "",
+                label_url: labelUrl,
                 cost: Number(rate.amount)
             };
 
@@ -353,7 +392,7 @@ module.exports = function registerLabelRoutes(app, { requireOwner, supabaseAdmin
 
         const { data, error } = await supabaseAdmin
             .from("order_labels")
-            .select("carrier, service, tracking_number, label_url, cost, created_at")
+            .select("id, shippo_transaction_id, carrier, service, tracking_number, label_url, cost, created_at")
             .eq("order_id", req.params.id)
             .order("created_at", { ascending: false });
 
@@ -362,7 +401,38 @@ module.exports = function registerLabelRoutes(app, { requireOwner, supabaseAdmin
             return res.status(502).json({ error: "Could not load labels." });
         }
 
-        res.json(data);
+        // Any label saved without its file link: ask Shippo for it now,
+        // and save it so next time it's already there.
+        for (const row of data) {
+
+            if (row.label_url || !row.shippo_transaction_id) {
+                continue;
+            }
+
+            const url = await fetchLabelUrl(row.shippo_transaction_id, 1, 0);
+
+            if (url) {
+                row.label_url = url;
+                const { error: saveError } = await supabaseAdmin
+                    .from("order_labels")
+                    .update({ label_url: url })
+                    .eq("id", row.id);
+                if (saveError) {
+                    console.error("Found label link but could not save it:", row.id, saveError);
+                }
+            }
+
+        }
+
+        // Only send what the page needs (no internal IDs).
+        res.json(data.map(row => ({
+            carrier: row.carrier,
+            service: row.service,
+            tracking_number: row.tracking_number,
+            label_url: row.label_url,
+            cost: row.cost,
+            created_at: row.created_at
+        })));
 
     });
 

@@ -3725,7 +3725,9 @@ async function loadSavedLabels(orderId, container) {
                     · ${money(Number(label.cost || 0))}
                     · Tracking ${escapeHtml(label.tracking_number || "")}
                 </p>
-                <a class="admin-order-save" style="display:inline-block; text-decoration:none; margin:2px 0 10px;" href="${escapeHtml(label.label_url || "")}" target="_blank" rel="noopener noreferrer">Print Label</a>
+                ${/^https:\/\//i.test(label.label_url || "")
+                    ? `<a class="admin-order-save" style="display:inline-block; text-decoration:none; margin:2px 0 10px;" href="${escapeHtml(label.label_url)}" target="_blank" rel="noopener noreferrer">Print Label</a>`
+                    : `<p class="checkout-note">The label file isn't ready from Shippo yet. Close Manage Shop and open this order again in a minute. Don't buy another label.</p>`}
             `;
 
         }).join("");
@@ -3856,9 +3858,12 @@ async function buyLabel(order, rate, area, allowAnother) {
         if (data.warnings && data.warnings.length > 0) {
             // Something couldn't be saved, so keep the label link on
             // screen instead of refreshing the list away from it.
+            const hasLink = /^https:\/\//i.test(data.label.label_url || "");
             area.querySelector("[data-label-rates]").innerHTML = `
                 <p class="checkout-note">
-                    <a href="${escapeHtml(data.label.label_url)}" target="_blank" rel="noopener noreferrer"><strong>Open label to print</strong></a>
+                    ${hasLink
+                        ? `<a href="${escapeHtml(data.label.label_url)}" target="_blank" rel="noopener noreferrer"><strong>Open label to print</strong></a>`
+                        : `<strong>Label bought.</strong> The label file isn't ready yet. Print it from goshippo.com.`}
                     · Tracking ${escapeHtml(data.label.tracking_number)}
                 </p>
             `;
