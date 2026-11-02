@@ -4327,7 +4327,7 @@ function subscriptionStatusText(plan) {
         return "Hidden from customers: switched off.";
     }
 
-    return "Switched on: will show in the shop once subscriptions launch.";
+    return "Switched on: showing in the shop.";
 
 }
 

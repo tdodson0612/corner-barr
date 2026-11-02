@@ -1,0 +1,80 @@
+<!-- /corner-barr/public/subscription-confirmed.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+
+    <title>Corner Barr | Subscription</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+    >
+
+    <link rel="stylesheet" href="css/styles.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        .subscription-confirm-page {
+            max-width: 600px;
+            margin: 80px auto;
+            padding: 48px 32px;
+            text-align: center;
+            background: #fff;
+            border: 1px solid #e6dfd3;
+        }
+        .subscription-confirm-page h2 {
+            margin: 8px 0 16px;
+        }
+        .subscription-confirm-page p {
+            color: #5f5a52;
+            line-height: 1.6;
+            margin: 0 0 20px;
+        }
+        .subscription-confirm-page .primary-button {
+            display: inline-block;
+            text-decoration: none;
+            padding: 14px 32px;
+            margin-top: 8px;
+        }
+    </style>
+
+</head>
+
+<body>
+
+    <div id="header-slot"></div>
+
+    <main>
+
+        <section class="subscription-confirm-page" id="subscriptionConfirmBox">
+            <p class="eyebrow">ONE MOMENT</p>
+            <h2>Confirming your subscription…</h2>
+            <p>This only takes a few seconds. Please don't close this page.</p>
+        </section>
+
+    </main>
+
+    <div id="footer-slot"></div>
+
+    <div id="cart-drawer-slot"></div>
+    <div id="checkout-modal-slot"></div>
+    <div id="account-modal-slot"></div>
+    <div id="admin-modal-slot"></div>
+
+    <script src="js/partials.js"></script>
+    <script src="js/shared.js"></script>
+    <script src="js/subscriptions.js"></script>
+    <script>initShared().then(confirmSubscriptionReturn);</script>
+
+</body>
+
+</html>

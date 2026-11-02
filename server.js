@@ -15,6 +15,7 @@ const { hasUserPurchasedProduct, getMostRecentCustomerName, getProductReviewSumm
 const { createNotification, notifyOrderStatusChange, notifyOrderReceived, notifyOwnerOfNewOrder, notifyWishlistersOfStockChange, notifyCustomerOfRefund } = require("./data/notifications");
 const { getSimilarProducts, getRecommendationsForUser } = require("./data/recommendations");
 const { emailOwnerNewOrder, emailCustomerOrderReceived, emailCustomerShipped } = require("./data/email");
+const { createSubscriptionBilling, registerSubscriptionBillingRoutes } = require("./data/subscriptionBilling");
 
 const app = express();
 app.use(express.json());
@@ -2602,6 +2603,12 @@ app.post("/api/webhooks/paypal", async (req, res) => {
 
         }
 
+        // Subscription payments, activations, cancellations, failures.
+        const eventType = String(req.body.event_type || "");
+        if (eventType === "PAYMENT.SALE.COMPLETED" || eventType.startsWith("BILLING.SUBSCRIPTION.")) {
+            await subscriptionBilling.handleWebhookEvent(req.body);
+        }
+
         res.status(200).send();
 
     } catch (err) {
@@ -2619,6 +2626,14 @@ require("./data/seo")(app, { supabaseAdmin });
 registerCategoryRoutes(app, { requireOwner, supabaseAdmin, helpers: categoryHelpers });
 require("./data/guestReviews")(app, { express, requireOwner, supabaseAdmin, createNotification });
 require("./data/subscriptions")(app, { requireOwner, supabaseAdmin });
+
+const subscriptionBilling = createSubscriptionBilling({
+    supabaseAdmin,
+    getPayPalAccessToken,
+    paypalApiBase: PAYPAL_API_BASE
+});
+registerSubscriptionBillingRoutes(app, { requireLogin, supabaseAdmin, billing: subscriptionBilling });
+subscriptionBilling.startBackgroundSync();
 
 app.listen(PORT, () => {
     console.log(`Corner Barr server running at http://localhost:${PORT}`);

@@ -277,6 +277,9 @@ module.exports = function registerSubscriptionRoutes(app, { requireOwner, supaba
             .select("id");
 
         if (error) {
+            if (error.code === "23503") {
+                return res.status(409).json({ error: "This box has subscribers, so it can't be deleted. Switch it off instead to stop new signups." });
+            }
             console.error("Could not delete subscription plan:", error);
             return res.status(502).json({ error: "Could not delete the subscription." });
         }

@@ -4916,3 +4916,74 @@ textarea:focus {
 #adminSubscriptionsSection [data-sub-shipping-price-wrap] {
     margin-top: 10px;
 }
+
+
+/* Shop: subscription boxes */
+.subscription-card .product-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.subscription-shipping-note {
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.subscription-save-badge {
+    display: inline-block;
+    align-self: flex-start;
+    margin-top: 10px;
+}
+
+.subscription-subscribe-button {
+    margin-top: 16px;
+}
+
+/* Subscribe window */
+#subscriptionModal .subscription-modal {
+    max-height: 92vh;
+    overflow-y: auto;
+}
+
+#subscriptionModal select,
+#subscriptionModal input[type="tel"] {
+    width: 100%;
+    padding: 14px 15px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    background: #ffffff;
+    color: var(--charcoal);
+    font-family: inherit;
+    font-size: 14px;
+}
+
+#subscriptionModal .subscription-summary {
+    margin-top: 20px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    background: #ffffff;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+#subscriptionModal .subscription-summary p {
+    margin: 0 0 6px;
+}
+
+/* Keep the Subscribe buttons lined up at the bottom of each card */
+.subscription-card {
+    display: flex;
+    flex-direction: column;
+}
+
+.subscription-card .product-info {
+    flex: 1;
+}
+
+.subscription-card .subscription-subscribe-button {
+    margin-top: auto;
+}
+
+.subscription-card .product-bottom {
+    margin-bottom: 16px;
+}
