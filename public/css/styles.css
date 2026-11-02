@@ -4880,3 +4880,39 @@ textarea:focus {
     .hbp-right-2 { right: 12px; top: 27%; }
     .hbp-right-3 { right: 12px; top: auto; bottom: 1.5%; }
 }
+
+
+/* Manage Shop > Subscriptions: dropdowns and price boxes on the light background */
+#adminSubscriptionsSection select,
+#adminSubscriptionsSection input[type="number"] {
+    width: 100%;
+    max-width: 420px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    background: #ffffff;
+    color: var(--charcoal);
+    font-family: inherit;
+    font-size: 14px;
+}
+
+#adminSubscriptionsSection .admin-image-preview {
+    display: block;
+    max-width: 180px;
+    margin-bottom: 8px;
+}
+
+#adminSubscriptionsSection .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+#adminSubscriptionsSection [data-sub-shipping-price-wrap] {
+    margin-top: 10px;
+}

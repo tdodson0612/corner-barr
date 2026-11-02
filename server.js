@@ -2618,6 +2618,7 @@ require("./data/engraving")(app, { express, requireOwner, supabaseAdmin });
 require("./data/seo")(app, { supabaseAdmin });
 registerCategoryRoutes(app, { requireOwner, supabaseAdmin, helpers: categoryHelpers });
 require("./data/guestReviews")(app, { express, requireOwner, supabaseAdmin, createNotification });
+require("./data/subscriptions")(app, { requireOwner, supabaseAdmin });
 
 app.listen(PORT, () => {
     console.log(`Corner Barr server running at http://localhost:${PORT}`);

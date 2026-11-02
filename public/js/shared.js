@@ -2405,7 +2405,16 @@ function switchAdminTab(tab) {
     const showingShipping = tab === "shipping";
     const showingCategories = tab === "categories";
     const showingReviews = tab === "reviews";
-    const showingListings = !showingOrders && !showingShipping && !showingCategories && !showingReviews;
+    const showingSubscriptions = tab === "subscriptions";
+    const showingListings = !showingOrders && !showingShipping && !showingCategories && !showingReviews && !showingSubscriptions;
+
+    const subscriptionsTab = document.getElementById("adminTabSubscriptions");
+    const subscriptionsSection = document.getElementById("adminSubscriptionsSection");
+
+    if (subscriptionsTab && subscriptionsSection) {
+        subscriptionsTab.classList.toggle("active", showingSubscriptions);
+        subscriptionsSection.classList.toggle("hidden", !showingSubscriptions);
+    }
 
     const reviewsTab = document.getElementById("adminTabReviews");
     const reviewsSection = document.getElementById("adminReviewsSection");
@@ -2458,6 +2467,13 @@ function switchAdminTab(tab) {
         loadAdminReviews().catch(err => {
             console.error(err);
             showAdminError("Could not load reviews.");
+        });
+    }
+
+    if (showingSubscriptions) {
+        loadAdminSubscriptions().catch(err => {
+            console.error(err);
+            showAdminError("Could not load subscriptions.");
         });
     }
 
@@ -3098,6 +3114,16 @@ function wireSharedEventListeners() {
     const adminTabReviews = document.getElementById("adminTabReviews");
     if (adminTabReviews) {
         adminTabReviews.addEventListener("click", () => switchAdminTab("reviews"));
+    }
+
+    const adminTabSubscriptions = document.getElementById("adminTabSubscriptions");
+    if (adminTabSubscriptions) {
+        adminTabSubscriptions.addEventListener("click", () => switchAdminTab("subscriptions"));
+    }
+
+    const adminAddSubscriptionButton = document.getElementById("adminAddSubscriptionButton");
+    if (adminAddSubscriptionButton) {
+        adminAddSubscriptionButton.addEventListener("click", addAdminSubscription);
     }
 
     const adminTabCategories = document.getElementById("adminTabCategories");
@@ -4249,6 +4275,332 @@ async function deleteAdminCategory(category) {
         await afterCategoryChange();
     } catch (err) {
         showAdminError(err.message);
+    }
+
+}
+
+
+/* =========================================
+   ADMIN — SUBSCRIPTIONS TAB (owner only)
+   Ashley sets up each subscription box: description, photo, how often it
+   ships, price, optional regular price (shows the subscriber discount),
+   and shipping included or charged separately. A box can only be
+   switched on once it has a price. Customers can't see these yet.
+========================================= */
+
+async function sendSubscriptionRequest(url, method, body) {
+
+    const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: body ? JSON.stringify(body) : undefined
+    });
+
+    if (response.status === 204) {
+        return null;
+    }
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data.error || "Something went wrong. Please try again.");
+    }
+
+    return data;
+
+}
+
+async function loadAdminSubscriptions() {
+
+    const plans = await sendSubscriptionRequest("/api/admin/subscription-plans", "GET");
+    renderAdminSubscriptions(plans);
+
+}
+
+function subscriptionStatusText(plan) {
+
+    if (plan.price === null || plan.price === undefined) {
+        return "Hidden from customers: needs a price.";
+    }
+
+    if (!plan.is_active) {
+        return "Hidden from customers: switched off.";
+    }
+
+    return "Switched on: will show in the shop once subscriptions launch.";
+
+}
+
+function subscriptionSavingsText(price, regularPrice) {
+
+    const p = Number(price);
+    const r = Number(regularPrice);
+
+    if (!Number.isFinite(p) || !Number.isFinite(r) || p <= 0 || r <= p) {
+        return "";
+    }
+
+    const percent = Math.round(((r - p) / r) * 100);
+    return `Customers will see: "Save ${percent}% vs. buying separately."`;
+
+}
+
+function renderAdminSubscriptions(plans) {
+
+    const list = document.getElementById("adminSubscriptionsList");
+
+    if (!list) {
+        return;
+    }
+
+    list.innerHTML = "";
+
+    if (!Array.isArray(plans) || plans.length === 0) {
+        list.innerHTML = `<p class="checkout-note">No subscription boxes yet. Add one below.</p>`;
+        return;
+    }
+
+    plans.forEach(plan => {
+
+        const row = document.createElement("div");
+        row.style.cssText = "border:1px solid #e0d9cc; background:#fff; padding:14px; margin-bottom:12px;";
+
+        const moneyValue = value => (value === null || value === undefined ? "" : Number(value).toFixed(2));
+
+        row.innerHTML = `
+            <p class="checkout-note" data-sub-status><strong>${escapeHtml(subscriptionStatusText(plan))}</strong></p>
+            <div class="form-group">
+                <label>Name</label>
+                <input type="text" maxlength="80" data-sub-name value="${escapeHtml(plan.name || "")}">
+            </div>
+            <div class="form-group">
+                <label>Description (what's in the box)</label>
+                <textarea maxlength="1000" data-sub-description>${escapeHtml(plan.description || "")}</textarea>
+            </div>
+            <div class="form-group">
+                <label>Photo (optional)</label>
+                <img data-sub-image-preview class="admin-image-preview ${plan.image_url ? "" : "hidden"}" src="${escapeHtml(plan.image_url || "")}" alt="">
+                <input type="file" accept="image/*" data-sub-image-input>
+                <button type="button" class="admin-refund-preset ${plan.image_url ? "" : "hidden"}" data-sub-image-remove>Remove photo</button>
+            </div>
+            <div class="form-group">
+                <label>How often it ships</label>
+                <select data-sub-interval>
+                    <option value="1" ${Number(plan.interval_months) === 1 ? "selected" : ""}>Every month (on the 1st)</option>
+                    <option value="3" ${Number(plan.interval_months) === 3 ? "selected" : ""}>Every 3 months (counted from when they sign up)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Size options (optional)</label>
+                <p class="input-help">For boxes that come in sizes, like candles. Each size has its own price, and customers pick one when they sign up. Leave empty for one price.</p>
+                <div data-sub-options></div>
+                <button type="button" class="admin-refund-preset" data-sub-add-option>+ Add a size</button>
+            </div>
+            <div class="form-group" data-sub-price-group>
+                <label>Price per box (USD)</label>
+                <input type="number" min="1" max="1000" step="0.01" data-sub-price placeholder="e.g. 22.00" value="${moneyValue(plan.price)}">
+            </div>
+            <div class="form-group" data-sub-regular-group>
+                <label>Regular price (optional)</label>
+                <input type="number" min="1" max="1000" step="0.01" data-sub-regular-price placeholder="What it would cost to buy separately" value="${moneyValue(plan.regular_price)}">
+                <p class="input-help">Fill this in to show the subscriber discount. Leave it blank for no discount.</p>
+                <p class="input-help" data-sub-savings></p>
+            </div>
+            <div class="form-group">
+                <label>Shipping</label>
+                <label class="checkbox-label">
+                    <input type="radio" name="subShipping-${escapeHtml(plan.id)}" value="included" data-sub-shipping-included ${plan.shipping_included ? "checked" : ""}>
+                    <span>Included in the price (free shipping)</span>
+                </label>
+                <label class="checkbox-label">
+                    <input type="radio" name="subShipping-${escapeHtml(plan.id)}" value="separate" data-sub-shipping-separate ${plan.shipping_included ? "" : "checked"}>
+                    <span>Charge shipping separately</span>
+                </label>
+                <div data-sub-shipping-price-wrap class="${plan.shipping_included ? "hidden" : ""}">
+                    <label>Shipping charge per box (USD)</label>
+                    <input type="number" min="0" max="100" step="0.01" data-sub-shipping-price placeholder="e.g. 6.00" value="${plan.shipping_included ? "" : moneyValue(plan.shipping_price)}">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" data-sub-active ${plan.is_active ? "checked" : ""}>
+                    <span>Switched on (show to customers)</span>
+                </label>
+                <p class="input-help">Can only be switched on once it has a price and a description.</p>
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                <button type="button" class="admin-order-save" data-sub-save>Save</button>
+                <button type="button" class="remove-item" data-sub-delete>Delete</button>
+            </div>
+        `;
+
+        let imageUrl = plan.image_url || null;
+
+        const preview = row.querySelector("[data-sub-image-preview]");
+        const removeImageButton = row.querySelector("[data-sub-image-remove]");
+        const savingsEl = row.querySelector("[data-sub-savings]");
+        const priceInput = row.querySelector("[data-sub-price]");
+        const regularInput = row.querySelector("[data-sub-regular-price]");
+        const shippingWrap = row.querySelector("[data-sub-shipping-price-wrap]");
+        const saveButton = row.querySelector("[data-sub-save]");
+
+        const optionsList = row.querySelector("[data-sub-options]");
+        const priceGroup = row.querySelector("[data-sub-price-group]");
+        const regularGroup = row.querySelector("[data-sub-regular-group]");
+
+        // With sizes, each size has its own price, so the single price and
+        // regular price boxes are hidden.
+        const refreshPriceFields = () => {
+            const hasOptions = optionsList.children.length > 0;
+            priceGroup.classList.toggle("hidden", hasOptions);
+            regularGroup.classList.toggle("hidden", hasOptions);
+        };
+
+        const addOptionRow = (option) => {
+            const optionRow = document.createElement("div");
+            optionRow.style.cssText = "display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:8px;";
+            optionRow.innerHTML = `
+                <input type="text" maxlength="40" placeholder="Size, e.g. 12 oz" data-option-label value="${escapeHtml(option ? option.label : "")}" style="flex:1 1 160px; max-width:240px;">
+                <input type="number" min="1" max="1000" step="0.01" placeholder="Price" data-option-price value="${option ? Number(option.price).toFixed(2) : ""}" style="flex:0 1 140px;">
+                <button type="button" class="remove-item" data-option-remove>Remove</button>
+            `;
+            optionRow.querySelector("[data-option-remove]").addEventListener("click", () => {
+                optionRow.remove();
+                refreshPriceFields();
+            });
+            optionsList.appendChild(optionRow);
+            refreshPriceFields();
+        };
+
+        (Array.isArray(plan.options) ? plan.options : []).forEach(option => addOptionRow(option));
+        row.querySelector("[data-sub-add-option]").addEventListener("click", () => addOptionRow(null));
+        refreshPriceFields();
+
+        const updateSavings = () => {
+            savingsEl.textContent = subscriptionSavingsText(priceInput.value, regularInput.value);
+        };
+        priceInput.addEventListener("input", updateSavings);
+        regularInput.addEventListener("input", updateSavings);
+        updateSavings();
+
+        row.querySelector("[data-sub-shipping-included]").addEventListener("change", () => shippingWrap.classList.add("hidden"));
+        row.querySelector("[data-sub-shipping-separate]").addEventListener("change", () => shippingWrap.classList.remove("hidden"));
+
+        row.querySelector("[data-sub-image-input]").addEventListener("change", async event => {
+
+            const file = event.target.files && event.target.files[0];
+
+            if (!file) {
+                return;
+            }
+
+            clearAdminError();
+            saveButton.disabled = true;
+
+            try {
+                imageUrl = await uploadProductImage(file);
+                preview.src = imageUrl;
+                preview.classList.remove("hidden");
+                removeImageButton.classList.remove("hidden");
+            } catch (err) {
+                showAdminError(err.message || "Could not upload the photo.");
+            } finally {
+                saveButton.disabled = false;
+            }
+
+        });
+
+        removeImageButton.addEventListener("click", () => {
+            imageUrl = null;
+            preview.src = "";
+            preview.classList.add("hidden");
+            removeImageButton.classList.add("hidden");
+        });
+
+        saveButton.addEventListener("click", async () => {
+
+            clearAdminError();
+
+            const shippingIncluded = row.querySelector("[data-sub-shipping-included]").checked;
+
+            const options = Array.from(optionsList.children).map(optionRow => ({
+                label: optionRow.querySelector("[data-option-label]").value,
+                price: optionRow.querySelector("[data-option-price]").value
+            }));
+
+            const payload = {
+                name: row.querySelector("[data-sub-name]").value,
+                description: row.querySelector("[data-sub-description]").value,
+                image_url: imageUrl,
+                interval_months: Number(row.querySelector("[data-sub-interval]").value),
+                price: priceInput.value === "" ? null : priceInput.value,
+                regular_price: regularInput.value === "" ? null : regularInput.value,
+                options,
+                shipping_included: shippingIncluded,
+                shipping_price: shippingIncluded ? 0 : row.querySelector("[data-sub-shipping-price]").value,
+                is_active: row.querySelector("[data-sub-active]").checked
+            };
+
+            saveButton.disabled = true;
+
+            try {
+                await sendSubscriptionRequest(`/api/admin/subscription-plans/${encodeURIComponent(plan.id)}`, "PUT", payload);
+                await loadAdminSubscriptions();
+                alert(`"${payload.name.trim()}" was saved.`);
+            } catch (err) {
+                showAdminError(err.message);
+                saveButton.disabled = false;
+            }
+
+        });
+
+        row.querySelector("[data-sub-delete]").addEventListener("click", async () => {
+
+            clearAdminError();
+
+            if (!confirm(`Delete the "${plan.name}" subscription box? This can't be undone.`)) {
+                return;
+            }
+
+            try {
+                await sendSubscriptionRequest(`/api/admin/subscription-plans/${encodeURIComponent(plan.id)}`, "DELETE");
+                await loadAdminSubscriptions();
+            } catch (err) {
+                showAdminError(err.message);
+            }
+
+        });
+
+        list.appendChild(row);
+
+    });
+
+}
+
+async function addAdminSubscription() {
+
+    clearAdminError();
+
+    const nameInput = document.getElementById("adminNewSubscriptionName");
+    const button = document.getElementById("adminAddSubscriptionButton");
+    const name = nameInput.value.trim();
+
+    if (!name) {
+        showAdminError("Please give the new subscription box a name.");
+        return;
+    }
+
+    button.disabled = true;
+
+    try {
+        await sendSubscriptionRequest("/api/admin/subscription-plans", "POST", { name });
+        nameInput.value = "";
+        await loadAdminSubscriptions();
+        alert(`"${name}" was added! Fill in its details and price, then tap Save.`);
+    } catch (err) {
+        showAdminError(err.message);
+    } finally {
+        button.disabled = false;
     }
 
 }

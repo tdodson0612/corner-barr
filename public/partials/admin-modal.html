@@ -29,6 +29,7 @@
                 <button type="button" class="admin-tab" id="adminTabShipping">Shipping</button>
                 <button type="button" class="admin-tab" id="adminTabCategories">Categories</button>
                 <button type="button" class="admin-tab" id="adminTabReviews">Reviews</button>
+                <button type="button" class="admin-tab" id="adminTabSubscriptions">Subscriptions</button>
             </div>
 
             <div
@@ -214,6 +215,31 @@
                 <h3>On the Site</h3>
 
                 <div id="adminPublishedReviewsList"></div>
+
+            </div>
+
+            <div class="admin-shipping-section hidden" id="adminSubscriptionsSection">
+
+                <h3>Subscription Boxes</h3>
+                <p class="checkout-note">
+                    Set up each box here: what's in it, how often it ships, and the price.
+                    A box stays hidden from customers until it has a price and you switch it on.
+                    Boxes ship on the 1st of the month.
+                </p>
+                <p class="checkout-note"><strong>Coming soon:</strong> customers can't sign up yet. Terry is still building
+                    the checkout part. You can set your prices now, and the boxes you switch on will appear
+                    in the shop once it's ready.</p>
+
+                <div id="adminSubscriptionsList"></div>
+
+                <h3>Add a Subscription Box</h3>
+
+                <div class="form-group">
+                    <label for="adminNewSubscriptionName">Name</label>
+                    <input id="adminNewSubscriptionName" type="text" maxlength="80" placeholder="e.g. Board Care Kit">
+                </div>
+
+                <button type="button" class="primary-button" id="adminAddSubscriptionButton">Add Subscription Box</button>
 
             </div>
 
