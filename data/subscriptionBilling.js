@@ -99,8 +99,16 @@ function planOptions(plan) {
     return Array.isArray(plan.options) ? plan.options : [];
 }
 
+// Customers only ever see (or can buy) a box that Ashley has published,
+// with a price, a photo, and a description.
 function isPlanLive(plan) {
-    return Boolean(plan && plan.is_active && plan.price !== null && Number(plan.price) > 0);
+    return Boolean(
+        plan &&
+        plan.is_active === true &&
+        plan.price !== null && Number(plan.price) > 0 &&
+        typeof plan.image_url === "string" && plan.image_url.trim() !== "" &&
+        typeof plan.description === "string" && plan.description.trim() !== ""
+    );
 }
 
 // What one box costs this customer: { boxPrice, shippingPrice, charge, optionLabel }.
@@ -602,7 +610,7 @@ function registerSubscriptionBillingRoutes(app, { requireLogin, supabaseAdmin, b
         return res.status(500).json({ error: fallback });
     }
 
-    // Boxes customers can sign up for: switched on, with a price.
+    // Boxes customers can sign up for: published, with a price and a photo.
     app.get("/api/subscription-plans", async (req, res) => {
 
         const { data, error } = await supabaseAdmin
@@ -610,6 +618,7 @@ function registerSubscriptionBillingRoutes(app, { requireLogin, supabaseAdmin, b
             .select(`${PUBLIC_PLAN_COLUMNS}, is_active`)
             .eq("is_active", true)
             .not("price", "is", null)
+            .not("image_url", "is", null)
             .order("sort_order", { ascending: true })
             .order("created_at", { ascending: true });
 

@@ -5,11 +5,11 @@
 // Ashley sets up each box in Manage Shop > Subscriptions: name,
 // description, photo, how often it ships, price, optional "regular price"
 // (to show the subscriber discount), and whether shipping is included or
-// charged separately. Each box has an On/Off switch, and can only be
-// switched on once it has a price.
+// charged separately. Every box is a hidden draft until she publishes it,
+// and it can only be published once it has a photo, a price, and a
+// description (the database enforces this too).
 //
-// Nothing here is shown to customers yet. The customer sign-up and
-// PayPal billing come in Phase 2.
+// Customer sign-up and PayPal billing are in data/subscriptionBilling.js.
 //
 //   GET    /api/admin/subscription-plans       -> all boxes (owner only)
 //   POST   /api/admin/subscription-plans       -> add a new box (owner only)
@@ -149,10 +149,13 @@ function validatePlan(body, supabaseUrl) {
 
     if (isActive) {
         if (price.value === null && !price.error && options.length === rawOptions.length) {
-            errors.push("Set a price before switching this subscription on.");
+            errors.push("Set a price before publishing.");
         }
         if (!description) {
-            errors.push("Add a description before switching this subscription on, so customers know what's in the box.");
+            errors.push("Add a description before publishing, so customers know what's in the box.");
+        }
+        if (!imageUrl && !errors.some(e => e.startsWith("That photo"))) {
+            errors.push("Add a photo before publishing.");
         }
     }
 

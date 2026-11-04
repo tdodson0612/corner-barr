@@ -4285,7 +4285,8 @@ async function deleteAdminCategory(category) {
    Ashley sets up each subscription box: description, photo, how often it
    ships, price, optional regular price (shows the subscriber discount),
    and shipping included or charged separately. A box can only be
-   switched on once it has a price. Customers can't see these yet.
+   published once it has a photo, a price, and a description. Every box
+   is a hidden draft until she taps Publish.
 ========================================= */
 
 async function sendSubscriptionRequest(url, method, body) {
@@ -4317,17 +4318,32 @@ async function loadAdminSubscriptions() {
 
 }
 
+// What a box still needs before it can be published.
+function subscriptionMissingItems(plan) {
+
+    const missing = [];
+
+    if (!plan.image_url) missing.push("a photo");
+    if (plan.price === null || plan.price === undefined) missing.push("a price");
+    if (!String(plan.description || "").trim()) missing.push("a description");
+
+    return missing;
+
+}
+
 function subscriptionStatusText(plan) {
 
-    if (plan.price === null || plan.price === undefined) {
-        return "Hidden from customers: needs a price.";
+    if (plan.is_active) {
+        return "PUBLISHED: customers can see and buy this box.";
     }
 
-    if (!plan.is_active) {
-        return "Hidden from customers: switched off.";
+    const missing = subscriptionMissingItems(plan);
+
+    if (missing.length > 0) {
+        return `DRAFT: hidden from customers. Needs ${missing.join(", ")} before it can be published.`;
     }
 
-    return "Switched on: showing in the shop.";
+    return "DRAFT: hidden from customers. Ready to publish.";
 
 }
 
@@ -4378,9 +4394,12 @@ function renderAdminSubscriptions(plans) {
                 <textarea maxlength="1000" data-sub-description>${escapeHtml(plan.description || "")}</textarea>
             </div>
             <div class="form-group">
-                <label>Photo (optional)</label>
-                <img data-sub-image-preview class="admin-image-preview ${plan.image_url ? "" : "hidden"}" src="${escapeHtml(plan.image_url || "")}" alt="">
-                <input type="file" accept="image/*" data-sub-image-input>
+                <label>Photo (required to publish)</label>
+                <div class="admin-drop-zone" data-sub-drop-zone>
+                    <img data-sub-image-preview class="admin-image-preview ${plan.image_url ? "" : "hidden"}" src="${escapeHtml(plan.image_url || "")}" alt="">
+                    <span data-sub-drop-text>${plan.image_url ? "Tap here to replace the photo" : "Drag a photo here, or tap to choose one"}</span>
+                    <input type="file" accept="image/*" class="admin-file-input" data-sub-image-input>
+                </div>
                 <button type="button" class="admin-refund-preset ${plan.image_url ? "" : "hidden"}" data-sub-image-remove>Remove photo</button>
             </div>
             <div class="form-group">
@@ -4421,15 +4440,14 @@ function renderAdminSubscriptions(plans) {
                     <input type="number" min="0" max="100" step="0.01" data-sub-shipping-price placeholder="e.g. 6.00" value="${plan.shipping_included ? "" : moneyValue(plan.shipping_price)}">
                 </div>
             </div>
-            <div class="form-group">
-                <label class="checkbox-label">
-                    <input type="checkbox" data-sub-active ${plan.is_active ? "checked" : ""}>
-                    <span>Switched on (show to customers)</span>
-                </label>
-                <p class="input-help">Can only be switched on once it has a price and a description.</p>
-            </div>
+            <p class="input-help">${plan.is_active
+                ? "Saving changes keeps this box published. Tap Unpublish to hide it from customers."
+                : "Saving keeps this box as a draft. Customers can't see it until you tap Publish."}</p>
             <div style="display:flex; flex-wrap:wrap; gap:8px;">
-                <button type="button" class="admin-order-save" data-sub-save>Save</button>
+                <button type="button" class="admin-order-save" data-sub-save>${plan.is_active ? "Save Changes" : "Save Draft"}</button>
+                ${plan.is_active
+                    ? `<button type="button" class="admin-refund-preset" data-sub-unpublish>Unpublish</button>`
+                    : `<button type="button" class="primary-button" data-sub-publish>Publish</button>`}
                 <button type="button" class="remove-item" data-sub-delete>Delete</button>
             </div>
         `;
@@ -4438,6 +4456,8 @@ function renderAdminSubscriptions(plans) {
 
         const preview = row.querySelector("[data-sub-image-preview]");
         const removeImageButton = row.querySelector("[data-sub-image-remove]");
+        const dropZone = row.querySelector("[data-sub-drop-zone]");
+        const dropText = row.querySelector("[data-sub-drop-text]");
         const savingsEl = row.querySelector("[data-sub-savings]");
         const priceInput = row.querySelector("[data-sub-price]");
         const regularInput = row.querySelector("[data-sub-regular-price]");
@@ -4486,28 +4506,54 @@ function renderAdminSubscriptions(plans) {
         row.querySelector("[data-sub-shipping-included]").addEventListener("change", () => shippingWrap.classList.add("hidden"));
         row.querySelector("[data-sub-shipping-separate]").addEventListener("change", () => shippingWrap.classList.remove("hidden"));
 
-        row.querySelector("[data-sub-image-input]").addEventListener("change", async event => {
+        const actionButtons = () => row.querySelectorAll("[data-sub-save], [data-sub-publish], [data-sub-unpublish]");
 
-            const file = event.target.files && event.target.files[0];
+        const uploadSubscriptionPhoto = async file => {
 
             if (!file) {
                 return;
             }
 
+            if (!String(file.type || "").startsWith("image/")) {
+                showAdminError("Please choose a photo (a picture file).");
+                return;
+            }
+
             clearAdminError();
-            saveButton.disabled = true;
+            actionButtons().forEach(b => { b.disabled = true; });
+            dropText.textContent = "Uploading photo…";
 
             try {
                 imageUrl = await uploadProductImage(file);
                 preview.src = imageUrl;
                 preview.classList.remove("hidden");
                 removeImageButton.classList.remove("hidden");
+                dropText.textContent = "Photo added. Tap Save Draft or Publish to keep it.";
             } catch (err) {
                 showAdminError(err.message || "Could not upload the photo.");
+                dropText.textContent = imageUrl ? "Tap here to replace the photo" : "Drag a photo here, or tap to choose one";
             } finally {
-                saveButton.disabled = false;
+                actionButtons().forEach(b => { b.disabled = false; });
             }
 
+        };
+
+        row.querySelector("[data-sub-image-input]").addEventListener("change", event => {
+            uploadSubscriptionPhoto(event.target.files && event.target.files[0]);
+            event.target.value = "";
+        });
+
+        dropZone.addEventListener("dragover", event => {
+            event.preventDefault();
+            dropZone.classList.add("dragging");
+        });
+
+        dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragging"));
+
+        dropZone.addEventListener("drop", event => {
+            event.preventDefault();
+            dropZone.classList.remove("dragging");
+            uploadSubscriptionPhoto(event.dataTransfer.files && event.dataTransfer.files[0]);
         });
 
         removeImageButton.addEventListener("click", () => {
@@ -4515,9 +4561,12 @@ function renderAdminSubscriptions(plans) {
             preview.src = "";
             preview.classList.add("hidden");
             removeImageButton.classList.add("hidden");
+            dropText.textContent = "Drag a photo here, or tap to choose one";
         });
 
-        saveButton.addEventListener("click", async () => {
+        // action: "save" keeps the box as it is (draft or published),
+        // "publish" makes it visible to customers, "unpublish" hides it.
+        const saveSubscription = async action => {
 
             clearAdminError();
 
@@ -4538,21 +4587,51 @@ function renderAdminSubscriptions(plans) {
                 options,
                 shipping_included: shippingIncluded,
                 shipping_price: shippingIncluded ? 0 : row.querySelector("[data-sub-shipping-price]").value,
-                is_active: row.querySelector("[data-sub-active]").checked
+                is_active: action === "publish" ? true : (action === "unpublish" ? false : Boolean(plan.is_active))
             };
 
-            saveButton.disabled = true;
+            if (action === "publish") {
+                const missing = subscriptionMissingItems({ ...plan, image_url: imageUrl, price: payload.price, description: payload.description });
+                if (missing.length > 0) {
+                    showAdminError(`"${payload.name.trim()}" needs ${missing.join(", ")} before it can be published.`);
+                    return;
+                }
+                if (!confirm(`Publish "${payload.name.trim()}"? Customers will be able to see and buy this box right away.`)) {
+                    return;
+                }
+            }
+
+            if (action === "unpublish" && !confirm(`Unpublish "${payload.name.trim()}"? Customers won't be able to see it or sign up. People already subscribed stay subscribed.`)) {
+                return;
+            }
+
+            actionButtons().forEach(b => { b.disabled = true; });
 
             try {
                 await sendSubscriptionRequest(`/api/admin/subscription-plans/${encodeURIComponent(plan.id)}`, "PUT", payload);
                 await loadAdminSubscriptions();
-                alert(`"${payload.name.trim()}" was saved.`);
+                const done = action === "publish" ? "published. Customers can see it now"
+                    : action === "unpublish" ? "unpublished. Customers can't see it anymore"
+                    : (plan.is_active ? "saved" : "saved as a draft. Customers can't see it");
+                alert(`"${payload.name.trim()}" was ${done}.`);
             } catch (err) {
                 showAdminError(err.message);
-                saveButton.disabled = false;
+                actionButtons().forEach(b => { b.disabled = false; });
             }
 
-        });
+        };
+
+        saveButton.addEventListener("click", () => saveSubscription("save"));
+
+        const publishButton = row.querySelector("[data-sub-publish]");
+        if (publishButton) {
+            publishButton.addEventListener("click", () => saveSubscription("publish"));
+        }
+
+        const unpublishButton = row.querySelector("[data-sub-unpublish]");
+        if (unpublishButton) {
+            unpublishButton.addEventListener("click", () => saveSubscription("unpublish"));
+        }
 
         row.querySelector("[data-sub-delete]").addEventListener("click", async () => {
 
