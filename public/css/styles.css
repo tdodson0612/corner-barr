@@ -4987,3 +4987,209 @@ textarea:focus {
 .subscription-card .product-bottom {
     margin-bottom: 16px;
 }
+
+
+/* =========================================
+   MOTION & POLISH
+   Small, purposeful motion only. Everything animates transform and/or
+   opacity (smooth, never shifts the layout), and all of it is toned
+   down for people who turn on "reduce motion" on their device.
+========================================= */
+
+:root {
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --motion-fast: 180ms;
+    --motion-base: 280ms;
+    --motion-slow: 650ms;
+}
+
+/* Hold the header's space while it loads, so the page doesn't jump down
+   when it appears. Same background as the header itself. */
+#header-slot {
+    min-height: 102px;
+    background-image:
+        linear-gradient(rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.25)),
+        url("../assets/images/mountains.jpg");
+    background-size: cover;
+    background-position: center;
+    border-bottom: 2px solid #000;
+}
+
+@media (max-width: 850px) {
+    #header-slot {
+        min-height: 140px;
+    }
+}
+
+/* Smoother, more natural easing on existing motion */
+.primary-button,
+.secondary-button,
+.main-nav a,
+.product-card {
+    transition-timing-function: var(--ease-out);
+}
+
+.cart-drawer {
+    transition: transform 0.42s var(--ease-out);
+}
+
+/* Buttons: a small lift on hover, a gentle press when tapped */
+.account-button,
+.cart-button,
+.admin-order-save,
+.admin-refund-preset {
+    transition: transform var(--motion-fast) var(--ease-out);
+}
+
+.shop-category-link {
+    transition:
+        background 0.2s ease,
+        transform var(--motion-fast) var(--ease-out);
+}
+
+@media (hover: hover) {
+    .secondary-button:hover,
+    .account-button:hover,
+    .cart-button:hover {
+        transform: translateY(-2px);
+    }
+}
+
+.primary-button:active,
+.secondary-button:active,
+.account-button:active,
+.cart-button:active,
+.main-nav a:active,
+.admin-order-save:active,
+.admin-refund-preset:active,
+.shop-category-link:active {
+    transform: translateY(0) scale(0.97);
+    transition-duration: 90ms;
+}
+
+/* Product photos ease in a touch on hover (inside their frame) */
+.product-card .product-photo {
+    transition: transform 0.6s var(--ease-out);
+}
+
+@media (hover: hover) {
+    .product-card:hover .product-photo {
+        transform: scale(1.04);
+    }
+}
+
+/* Pop-up windows (cart, checkout, account, subscribe) settle in gently */
+.modal-overlay .checkout-modal {
+    transform: translateY(14px) scale(0.985);
+    transition: transform var(--motion-base) var(--ease-out);
+}
+
+.modal-overlay.open .checkout-modal {
+    transform: none;
+}
+
+/* Home page: the welcome text rises in, one line after another */
+@keyframes cb-rise-in {
+    from {
+        opacity: 0;
+        transform: translateY(14px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+.home-main .hero-content > * {
+    animation: cb-rise-in 0.8s var(--ease-out) backwards;
+}
+
+.home-main .hero-content > *:nth-child(1) { animation-delay: 0.05s; }
+.home-main .hero-content > *:nth-child(2) { animation-delay: 0.15s; }
+.home-main .hero-content > *:nth-child(3) { animation-delay: 0.28s; }
+.home-main .hero-content > *:nth-child(4) { animation-delay: 0.4s; }
+
+/* Scroll reveals (set up by shared.js, only for things below the screen) */
+html.has-reveal .reveal {
+    opacity: 0;
+    transform: translateY(18px);
+}
+
+html.has-reveal .reveal.is-visible {
+    opacity: 1;
+    transform: none;
+    transition:
+        opacity var(--motion-slow) var(--ease-out),
+        transform var(--motion-slow) var(--ease-out);
+    transition-delay: var(--reveal-delay, 0ms);
+}
+
+/* =========================================
+   ACCESSIBILITY
+========================================= */
+
+/* Clear focus ring for keyboard users (not shown on mouse clicks).
+   A white gap plus a dark ring shows up on light and dark backgrounds. */
+:where(a, button, summary, [role="button"], [tabindex]:not([tabindex="-1"])):focus-visible {
+    outline: 2px solid var(--forest);
+    outline-offset: 3px;
+    box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.9);
+}
+
+:where(input, select, textarea):focus-visible {
+    outline: 2px solid var(--forest);
+    outline-offset: 1px;
+}
+
+main:focus {
+    outline: none;
+}
+
+.skip-link {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 1000;
+    padding: 12px 18px;
+    background: var(--forest);
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transform: translateY(-200%);
+    transition: transform var(--motion-fast) var(--ease-out);
+}
+
+.skip-link:focus {
+    transform: none;
+}
+
+/* Reduced motion: keep everything, just without the movement */
+@media (prefers-reduced-motion: reduce) {
+
+    html {
+        scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-delay: 0s !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        transition-delay: 0s !important;
+    }
+
+    html.has-reveal .reveal {
+        opacity: 1;
+        transform: none;
+    }
+
+    .product-card:hover .product-photo,
+    .modal-overlay .checkout-modal {
+        transform: none;
+    }
+}
+

@@ -187,7 +187,7 @@ function renderShopCollections() {
         const cards = category.products.map(product => {
 
             const imageMarkup = product.image_url
-                ? `<img class="product-photo" src="${escapeHtml(product.image_url)}" alt="${escapeHtml(product.name)}">`
+                ? `<img class="product-photo" loading="lazy" decoding="async" src="${escapeHtml(product.image_url)}" alt="${escapeHtml(product.name)}">`
                 : (style.placeholder ? style.placeholder(product) : `<div class="product-photo-placeholder"></div>`);
 
             return productCardMarkup(product, style.imageClassName || "", imageMarkup);

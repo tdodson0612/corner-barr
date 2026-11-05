@@ -49,7 +49,7 @@ function subscriptionSavingsBadge(plan) {
 function subscriptionCardMarkup(plan) {
 
     const imageMarkup = plan.image_url
-        ? `<img class="product-photo" src="${escapeHtml(plan.image_url)}" alt="${escapeHtml(plan.name)}">`
+        ? `<img class="product-photo" loading="lazy" decoding="async" src="${escapeHtml(plan.image_url)}" alt="${escapeHtml(plan.name)}">`
         : `<div class="product-photo-placeholder"></div>`;
 
     return `

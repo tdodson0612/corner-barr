@@ -3614,7 +3614,7 @@ function getRecentlyViewedIds() {
 function miniProductCardMarkup(product) {
 
     const imageMarkup = product.image_url
-        ? `<img class="product-photo" src="${escapeHtml(product.image_url)}" alt="${escapeHtml(product.name)}">`
+        ? `<img class="product-photo" loading="lazy" decoding="async" src="${escapeHtml(product.image_url)}" alt="${escapeHtml(product.name)}">`
         : `<div class="product-photo-placeholder"></div>`;
 
     return `
@@ -3668,6 +3668,7 @@ async function initShared() {
     wireSharedEventListeners();
     wireSearchEventListeners();
     wireNotificationEventListeners();
+    initMotionAndAccessibility();
 
     loadCart();
     renderCart();
@@ -4815,5 +4816,142 @@ async function removeAdminReview(reviewId) {
     } catch (err) {
         showAdminError(err.message);
     }
+
+}
+
+
+/* =========================================
+   MOTION & ACCESSIBILITY
+   - Skip link: lets keyboard users jump past the header to the page.
+   - Scroll reveals: sections and product cards fade up gently as they
+     scroll into view. Only things that start BELOW the screen are
+     animated, so nothing flickers on page load. Uses only opacity and
+     transform (smooth, no layout shift). Turned off entirely for people
+     who ask their device for reduced motion.
+========================================= */
+
+const REVEAL_SELECTORS = [
+    "main .collection-heading",
+    "main .product-card",
+    "main .about-text > *",
+    "main .about-card",
+    ".site-footer .footer-inner > div"
+].join(", ");
+
+function initMotionAndAccessibility() {
+
+    try {
+        setupSkipLinkTarget();
+        setupScrollReveal();
+    } catch (err) {
+        // Polish only. Never let it affect the shop.
+        console.error("Motion setup failed:", err);
+    }
+
+}
+
+function setupSkipLinkTarget() {
+
+    const main = document.querySelector("main");
+
+    if (!main) {
+        return;
+    }
+
+    if (!main.id) {
+        main.id = "main-content";
+    }
+
+    // Lets the skip link move keyboard focus to the page content.
+    if (!main.hasAttribute("tabindex")) {
+        main.setAttribute("tabindex", "-1");
+    }
+
+}
+
+function setupScrollReveal() {
+
+    const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (reduceMotion || !("IntersectionObserver" in window)) {
+        return;
+    }
+
+    document.documentElement.classList.add("has-reveal");
+
+    const finish = el => {
+        el.classList.remove("reveal", "is-visible");
+        el.style.removeProperty("--reveal-delay");
+    };
+
+    const observer = new IntersectionObserver(entries => {
+
+        entries.forEach(entry => {
+
+            if (!entry.isIntersecting) {
+                return;
+            }
+
+            const el = entry.target;
+            observer.unobserve(el);
+            el.classList.add("is-visible");
+
+            // Hand the element back to its normal styles (like the
+            // product card hover lift) once it has finished fading in.
+            el.addEventListener("transitionend", event => {
+                if (event.target === el) {
+                    finish(el);
+                }
+            });
+            setTimeout(() => finish(el), 1600);
+
+        });
+
+    }, { rootMargin: "0px 0px -6% 0px", threshold: 0.1 });
+
+    const markNew = () => {
+
+        document.querySelectorAll(REVEAL_SELECTORS).forEach(el => {
+
+            if (el.dataset.revealChecked) {
+                return;
+            }
+
+            el.dataset.revealChecked = "1";
+
+            if (el.closest(".modal-overlay, .cart-drawer")) {
+                return;
+            }
+
+            // Already on screen: leave it alone (no flicker).
+            if (el.getBoundingClientRect().top < window.innerHeight * 0.95) {
+                return;
+            }
+
+            // Cards side by side fade in one after another.
+            const index = Array.prototype.indexOf.call(el.parentElement ? el.parentElement.children : [], el);
+            el.style.setProperty("--reveal-delay", `${(Math.max(index, 0) % 3) * 70}ms`);
+
+            el.classList.add("reveal");
+            observer.observe(el);
+
+        });
+
+    };
+
+    markNew();
+
+    // Product grids are built after the page loads, so watch for new cards.
+    let scheduled = false;
+    new MutationObserver(() => {
+        if (scheduled) {
+            return;
+        }
+        scheduled = true;
+        requestAnimationFrame(() => {
+            scheduled = false;
+            markNew();
+        });
+    }).observe(document.body, { childList: true, subtree: true });
 
 }

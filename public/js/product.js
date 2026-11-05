@@ -639,7 +639,7 @@ function renderReviewsSection(section) {
         <div class="review-photos-gallery">
             ${photos.map(r => `
                 <a href="${escapeHtml(r.photo_url)}" target="_blank" rel="noopener noreferrer">
-                    <img src="${escapeHtml(r.photo_url)}" alt="Customer photo">
+                    <img loading="lazy" decoding="async" src="${escapeHtml(r.photo_url)}" alt="Customer photo">
                 </a>
             `).join("")}
         </div>
@@ -695,7 +695,7 @@ function reviewRowMarkup(review, myReview) {
                 ${starDisplayMarkup(review.rating)}
             </div>
             ${review.review_text ? `<p class="review-row-text">${escapeHtml(review.review_text)}</p>` : ""}
-            ${review.photo_url ? `<img class="review-row-photo" src="${escapeHtml(review.photo_url)}" alt="Customer photo">` : ""}
+            ${review.photo_url ? `<img class="review-row-photo" loading="lazy" decoding="async" src="${escapeHtml(review.photo_url)}" alt="Customer photo">` : ""}
             ${isMine ? `<button type="button" class="remove-item" data-delete-review="${review.id}">Delete my review</button>` : ""}
             ${isOwner && !isMine ? `<button type="button" class="remove-item" data-owner-remove-review="${review.id}">Remove review</button>` : ""}
         </div>
