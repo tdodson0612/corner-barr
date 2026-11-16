@@ -5193,3 +5193,345 @@ main:focus {
     }
 }
 
+
+
+/* =========================================
+   UPDATE 24: HOME PAGE CATEGORIES, MAP, SOCIAL LINKS,
+   NAME-ONLY PRODUCT CARDS, GOOGLE REVIEW PROMPT
+========================================= */
+
+/* ---- Category tiles (in the hero, where "Explore the Shop" was) ---- */
+
+.home-categories {
+    margin-top: 38px;
+}
+
+.home-categories-heading {
+    margin-bottom: 16px;
+    color: var(--forest);
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+.home-category-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.home-category-grid-fallback {
+    display: block;
+}
+
+.home-category-tile {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--white);
+    box-shadow: 0 10px 28px rgba(31, 27, 20, 0.12);
+    color: var(--charcoal);
+    text-decoration: none;
+    transition:
+        transform 0.35s var(--ease-out, ease),
+        box-shadow 0.35s var(--ease-out, ease);
+}
+
+.home-category-photo {
+    display: block;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    background: var(--cream-dark);
+}
+
+.home-category-photo img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.6s var(--ease-out, ease);
+}
+
+.home-category-name {
+    display: block;
+    padding: 13px 16px 15px;
+    font-family: var(--serif);
+    font-size: 23px;
+    font-weight: 600;
+    line-height: 1.1;
+}
+
+.home-category-tile-loading .home-category-photo {
+    background:
+        linear-gradient(90deg, var(--cream-dark), var(--cream), var(--cream-dark));
+    background-size: 200% 100%;
+    animation: cb-tile-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes cb-tile-shimmer {
+    from { background-position: 100% 0; }
+    to   { background-position: -100% 0; }
+}
+
+.home-shop-all {
+    display: inline-block;
+    margin-top: 18px;
+    padding: 11px 16px;
+    border-radius: 2px;
+    background: rgba(245, 240, 231, 0.94);
+    color: var(--forest);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    text-decoration: none;
+}
+
+.home-shop-all:hover {
+    background: var(--white);
+}
+
+@media (hover: hover) {
+    .home-category-tile:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 16px 36px rgba(31, 27, 20, 0.18);
+    }
+
+    .home-category-tile:hover .home-category-photo img {
+        transform: scale(1.05);
+    }
+}
+
+@media (max-width: 1000px) {
+    .home-category-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 700px) {
+    .home-category-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .home-category-name {
+        padding: 10px 12px 12px;
+        font-size: 19px;
+    }
+}
+
+/* ---- Shop and "you may also like" cards: photo and name only ---- */
+
+.product-info-name-only {
+    padding: 18px 22px 20px;
+}
+
+.product-info-name-only .product-name {
+    margin-top: 0;
+}
+
+/* ---- Shared inner width for the new home page sections ---- */
+
+.home-section-inner {
+    width: min(1050px, 90%);
+    margin: auto;
+    position: relative;
+    z-index: 2;
+}
+
+.home-map-section h2,
+.home-social-section h2 {
+    margin-top: 8px;
+    font-family: var(--serif);
+    font-size: clamp(38px, 4.5vw, 58px);
+    line-height: 0.95;
+}
+
+/* ---- Map ---- */
+
+.home-map-section {
+    padding: 110px 0;
+    background: var(--cream);
+    scroll-margin-top: 110px;
+}
+
+.home-map-inner {
+    display: grid;
+    grid-template-columns: 1fr 1.25fr;
+    gap: 70px;
+    align-items: center;
+}
+
+.home-map-text p:not(.eyebrow) {
+    margin-top: 16px;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.7;
+}
+
+.home-map-text .home-map-address {
+    margin-top: 22px;
+    color: var(--charcoal);
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.home-map-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 28px;
+}
+
+.home-map-card {
+    position: relative;
+    height: 420px;
+    overflow: hidden;
+    border-radius: 4px;
+    background: var(--cream-dark);
+    box-shadow: var(--shadow);
+}
+
+.home-map-frame {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    pointer-events: none;
+}
+
+.home-map-link {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+    padding: 16px;
+    text-decoration: none;
+}
+
+.home-map-link-label {
+    padding: 10px 14px;
+    border-radius: 2px;
+    background: var(--forest);
+    color: var(--white);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+    transition: background 0.2s ease;
+}
+
+.home-map-link:hover .home-map-link-label,
+.home-map-link:focus-visible .home-map-link-label {
+    background: var(--forest-dark);
+}
+
+/* ---- Social links ---- */
+
+.home-social-section {
+    padding: 80px 0 100px;
+    background: var(--cream-dark);
+    text-align: center;
+}
+
+.home-social-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 14px;
+    margin-top: 30px;
+}
+
+.home-social-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 52px;
+    padding: 0 24px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    background: var(--white);
+    color: var(--charcoal);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    text-decoration: none;
+    transition:
+        background 0.2s ease,
+        color 0.2s ease;
+}
+
+.home-social-link svg {
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
+}
+
+.home-social-link:hover {
+    background: var(--forest);
+    color: var(--white);
+}
+
+@media (max-width: 850px) {
+    .home-map-section {
+        padding: 70px 0;
+    }
+
+    .home-map-inner {
+        grid-template-columns: 1fr;
+        gap: 34px;
+    }
+
+    .home-map-card {
+        height: 300px;
+    }
+
+    .home-social-section {
+        padding: 60px 0 70px;
+    }
+}
+
+/* ---- "Would you also share this on Google?" ---- */
+
+.google-review-prompt {
+    margin: 0 0 26px;
+    padding: 24px 26px;
+    border: 1px solid var(--forest);
+    border-left-width: 4px;
+    border-radius: 4px;
+    background: var(--white);
+}
+
+.google-review-prompt h3 {
+    font-family: var(--serif);
+    font-size: 27px;
+    line-height: 1.1;
+}
+
+.google-review-prompt p {
+    margin: 8px 0 18px;
+    color: var(--muted);
+    font-size: 14px;
+}
+
+#inStoreReviewContainer .google-review-prompt {
+    margin-top: 18px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .home-category-tile,
+    .home-category-photo img {
+        transition: none;
+    }
+
+    .home-category-tile-loading .home-category-photo {
+        animation: none;
+    }
+}

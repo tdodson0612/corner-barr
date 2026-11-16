@@ -3613,6 +3613,9 @@ function getRecentlyViewedIds() {
 
 function miniProductCardMarkup(product) {
 
+    // Photo and name only (same as the shop). Price and description are
+    // on the product page.
+
     const imageMarkup = product.image_url
         ? `<img class="product-photo" loading="lazy" decoding="async" src="${escapeHtml(product.image_url)}" alt="${escapeHtml(product.name)}">`
         : `<div class="product-photo-placeholder"></div>`;
@@ -3623,16 +3626,33 @@ function miniProductCardMarkup(product) {
                 <div class="product-image">
                     ${imageMarkup}
                 </div>
-                <div class="product-info">
-                    <div class="product-category">${escapeHtml(product.category)}</div>
+                <div class="product-info product-info-name-only">
                     <h3 class="product-name">${escapeHtml(product.name)}</h3>
-                    <div class="product-bottom">
-                        <span class="product-price">${money(product.price)}</span>
-                        ${stockStatusMarkup(product.stock)}
-                    </div>
                 </div>
             </a>
         </article>
+    `;
+
+}
+
+
+/* =========================================
+   GOOGLE REVIEW PROMPT
+   Shown after someone leaves a review on the website, asking them to
+   share it on Google too. Shown to EVERY reviewer, whatever their star
+   rating (Google doesn't allow asking only the happy ones).
+========================================= */
+
+const GOOGLE_REVIEW_URL = "https://g.page/r/CYi4z2_p2s3-EBM/review";
+
+function googleReviewPromptMarkup() {
+
+    return `
+        <div class="google-review-prompt" role="status">
+            <h3>Would you also share this on Google?</h3>
+            <p>It really helps a small local shop like Corner Barr get found. It only takes a minute, and you can copy and paste what you just wrote.</p>
+            <a class="primary-button" href="${GOOGLE_REVIEW_URL}" target="_blank" rel="noopener">Share on Google</a>
+        </div>
     `;
 
 }
@@ -4835,6 +4855,9 @@ const REVEAL_SELECTORS = [
     "main .product-card",
     "main .about-text > *",
     "main .about-card",
+    "main .home-map-text > *",
+    "main .home-map-card",
+    "main .home-social-section .home-section-inner > *",
     ".site-footer .footer-inner > div"
 ].join(", ");
 

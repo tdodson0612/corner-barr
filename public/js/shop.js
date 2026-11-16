@@ -110,15 +110,10 @@ function productCardMarkup(product, imageClassName, imageMarkup) {
                     ${imageMarkup}
                 </div>
 
-                <div class="product-info">
-                    <div class="product-category">${escapeHtml(product.category)}</div>
+                <!-- Photo and name only. The price and description are
+                     on the product page. -->
+                <div class="product-info product-info-name-only">
                     <h3 class="product-name">${escapeHtml(product.name)}</h3>
-                    <p class="product-description">${escapeHtml(product.description)}</p>
-
-                    <div class="product-bottom">
-                        <span class="product-price">${money(product.price)}</span>
-                        ${stockStatusMarkup(product.stock)}
-                    </div>
                 </div>
 
             </a>

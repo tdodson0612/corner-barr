@@ -14,18 +14,18 @@
 
     <meta
         name="description"
-        content="Handmade custom cutting boards, laser engraving, candles, soaps, resin crafts, jewelry and gift baskets. Visit our shop in Central Point, Oregon, or order online."
+        content="Corner Barr is a handmade gift shop in Central Point, Oregon. Custom engraved cutting boards, candles, soaps, resin crafts, jewelry and gift baskets. Serving Medford, Grants Pass, Ashland and all of Southern Oregon. Visit us or order online."
     >
 
-    <title>Handmade Gifts &amp; Custom Cutting Boards | Corner Barr, Central Point OR</title>
+    <title>Corner Barr Gift Shop | Handmade Gifts in Central Point, Oregon</title>
 
     <link rel="canonical" href="https://cornerbarr.com/">
 
     <!-- Link previews (Facebook, texts, etc.) -->
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Corner Barr">
-    <meta property="og:title" content="Corner Barr | Handmade Gifts &amp; Custom Cutting Boards">
-    <meta property="og:description" content="Handmade custom cutting boards, laser engraving, candles, soaps, resin crafts, jewelry and gift baskets. Visit our shop in Central Point, Oregon, or order online.">
+    <meta property="og:title" content="Corner Barr Gift Shop | Handmade Gifts in Central Point, Oregon">
+    <meta property="og:description" content="A handmade gift shop in Central Point, Oregon. Custom engraved cutting boards, candles, soaps, resin crafts, jewelry and gift baskets. Visit us or order online.">
     <meta property="og:url" content="https://cornerbarr.com/">
     <meta property="og:image" content="https://cornerbarr.com/assets/images/corner-barr-booth.jpg">
     <meta name="twitter:card" content="summary_large_image">
@@ -38,7 +38,7 @@
             "@id": "https://cornerbarr.com/#store",
             "name": "Corner Barr",
             "alternateName": "Corner Barr, LLC",
-            "description": "Handmade custom cutting boards, laser engraving, candles, soaps, resin crafts, jewelry, gift baskets and personalized gifts, made in Southern Oregon.",
+            "description": "Handmade gift shop in Central Point, Oregon. Custom cutting boards, laser engraving, candles, soaps, resin crafts, jewelry, gift baskets and personalized gifts, made in Southern Oregon.",
             "url": "https://cornerbarr.com/",
             "image": "https://cornerbarr.com/assets/images/corner-barr-booth.jpg",
             "email": "Ashley@cornerbarr.com",
@@ -65,13 +65,30 @@
                     "closes": "20:00"
                 }
             ],
+            "sameAs": [
+                "https://www.facebook.com/cornerbarr26",
+                "https://www.instagram.com/cornerbarr26/"
+            ],
+            "hasMap": "https://www.google.com/maps/search/?api=1&query=Corner+Barr+211+N+Front+St+Central+Point+OR",
             "areaServed": [
                 "Central Point, OR",
                 "Medford, OR",
+                "White City, OR",
+                "Eagle Point, OR",
+                "Shady Cove, OR",
+                "Jacksonville, OR",
+                "Phoenix, OR",
+                "Talent, OR",
+                "Ashland, OR",
+                "Gold Hill, OR",
+                "Rogue River, OR",
+                "Grants Pass, OR",
+                "Merlin, OR",
+                "Cave Junction, OR",
                 "Southern Oregon",
                 "United States"
             ],
-            "keywords": "custom cutting boards, engraved cutting boards, personalized gifts, laser engraving, handmade candles, handmade soap, resin crafts, jewelry, gift baskets, holiday gifts, Central Point, Medford, Southern Oregon"
+            "keywords": "gift shop, handmade gifts, local gift shop, custom cutting boards, engraved cutting boards, personalized gifts, laser engraving, handmade candles, handmade soap, resin crafts, jewelry, gift baskets, holiday gifts, Christmas gifts, Central Point, Medford, Grants Pass, Ashland, Southern Oregon"
         }
     </script>
 
@@ -144,12 +161,24 @@
                     proudly made in Southern Oregon.
                 </p>
 
-                <a
-                    href="shop.html"
-                    class="primary-button"
-                >
-                    Explore the Shop
-                </a>
+                <!-- Shop by category. The tiles are filled in by js/home.js
+                     from the live shop, each with a photo picked from that
+                     category's products. The grey boxes hold the space
+                     while they load, so the page doesn't jump. -->
+                <div class="home-categories">
+
+                    <h2 class="home-categories-heading">Shop handmade gifts by category</h2>
+
+                    <div class="home-category-grid" id="homeCategoryGrid">
+                        <div class="home-category-tile home-category-tile-loading" aria-hidden="true"><span class="home-category-photo"></span><span class="home-category-name">&nbsp;</span></div>
+                        <div class="home-category-tile home-category-tile-loading" aria-hidden="true"><span class="home-category-photo"></span><span class="home-category-name">&nbsp;</span></div>
+                        <div class="home-category-tile home-category-tile-loading" aria-hidden="true"><span class="home-category-photo"></span><span class="home-category-name">&nbsp;</span></div>
+                        <div class="home-category-tile home-category-tile-loading" aria-hidden="true"><span class="home-category-photo"></span><span class="home-category-name">&nbsp;</span></div>
+                    </div>
+
+                    <a href="shop.html" class="home-shop-all">See everything in the shop &rarr;</a>
+
+                </div>
 
             </div>
 
@@ -230,6 +259,144 @@
                         alt="The Corner Barr booth, handmade cutting boards, candles, and gifts on display"
                         class="about-card-photo"
                     >
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =========================================
+             MAP: tapping it opens Google Maps
+        ========================================== -->
+
+        <section
+            class="home-map-section"
+            id="visit"
+        >
+
+            <div class="home-section-inner home-map-inner">
+
+                <div class="home-map-text">
+
+                    <p class="eyebrow">
+                        VISIT THE SHOP
+                    </p>
+
+                    <h2>
+                        Your local gift shop
+                        in Central Point.
+                    </h2>
+
+                    <p class="home-map-address">
+                        211 N Front St<br>
+                        Central Point, OR 97502
+                    </p>
+
+                    <p>
+                        Open Tuesday to Sunday, 11am to 8pm.<br>
+                        Closed Mondays.
+                    </p>
+
+                    <p class="home-map-area">
+                        Proudly serving all of Southern Oregon, from
+                        Grants Pass and Merlin to Medford, Eagle Point,
+                        Jacksonville, Ashland and the California border.
+                        Can't make it in? We ship right to your door.
+                    </p>
+
+                    <div class="home-map-buttons">
+                        <a
+                            href="https://www.google.com/maps/search/?api=1&amp;query=Corner+Barr+211+N+Front+St+Central+Point+OR"
+                            class="primary-button home-map-directions"
+                            target="_blank"
+                            rel="noopener"
+                        >
+                            Get Directions
+                        </a>
+
+                        <a
+                            href="https://g.page/r/CYi4z2_p2s3-EBM/review"
+                            class="secondary-button"
+                            target="_blank"
+                            rel="noopener"
+                        >
+                            Review Us on Google
+                        </a>
+                    </div>
+
+                </div>
+
+                <div class="home-map-card">
+
+                    <iframe
+                        class="home-map-frame"
+                        title="Map showing Corner Barr at 211 N Front St, Central Point, Oregon"
+                        src="https://maps.google.com/maps?q=Corner%20Barr%2C%20211%20N%20Front%20St%2C%20Central%20Point%2C%20OR%2097502&amp;z=15&amp;output=embed"
+                        loading="lazy"
+                        referrerpolicy="no-referrer-when-downgrade"
+                        tabindex="-1"
+                    ></iframe>
+
+                    <!-- Covers the map so one tap opens Google Maps -->
+                    <a
+                        class="home-map-link home-map-directions"
+                        href="https://www.google.com/maps/search/?api=1&amp;query=Corner+Barr+211+N+Front+St+Central+Point+OR"
+                        target="_blank"
+                        rel="noopener"
+                        aria-label="Open Corner Barr in Google Maps"
+                    >
+                        <span class="home-map-link-label">Open in Google Maps</span>
+                    </a>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =========================================
+             SOCIAL LINKS
+        ========================================== -->
+
+        <section
+            class="home-social-section"
+            id="follow"
+        >
+
+            <div class="home-section-inner">
+
+                <p class="eyebrow">
+                    FOLLOW ALONG
+                </p>
+
+                <h2>
+                    See what's new at Corner Barr
+                </h2>
+
+                <div class="home-social-links">
+
+                    <a
+                        class="home-social-link"
+                        href="https://www.facebook.com/cornerbarr26"
+                        target="_blank"
+                        rel="noopener me"
+                    >
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 21v-7.5h2.6l.4-3h-3V8.6c0-.9.3-1.5 1.5-1.5h1.6V4.4c-.3 0-1.2-.1-2.3-.1-2.3 0-3.9 1.4-3.9 4v2.2H7.8v3h2.6V21h3.1z"/></svg>
+                        Facebook
+                    </a>
+
+                    <a
+                        class="home-social-link"
+                        href="https://www.instagram.com/cornerbarr26/"
+                        target="_blank"
+                        rel="noopener me"
+                    >
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7.3A4.7 4.7 0 1 0 12 16.7 4.7 4.7 0 0 0 12 7.3zm0 7.7a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm4.9-8.9a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2zM21 7.8c-.1-1.5-.4-2.8-1.5-3.9S17.1 2.5 15.6 2.4C14.1 2.3 9.9 2.3 8.4 2.4 6.9 2.5 5.6 2.8 4.5 3.9S3.1 6.3 3 7.8c-.1 1.5-.1 6.9 0 8.4.1 1.5.4 2.8 1.5 3.9s2.4 1.4 3.9 1.5c1.5.1 5.7.1 7.2 0 1.5-.1 2.8-.4 3.9-1.5s1.4-2.4 1.5-3.9c.1-1.5.1-6.9 0-8.4zm-2 10.4a3 3 0 0 1-1.7 1.7c-1.2.5-4 .4-5.3.4s-4.1.1-5.3-.4a3 3 0 0 1-1.7-1.7c-.5-1.2-.4-4-.4-5.3s-.1-4.1.4-5.3A3 3 0 0 1 6.7 5.9c1.2-.5 4-.4 5.3-.4s4.1-.1 5.3.4a3 3 0 0 1 1.7 1.7c.5 1.2.4 4 .4 5.3s.1 4.1-.4 5.3z"/></svg>
+                        Instagram
+                    </a>
 
                 </div>
 

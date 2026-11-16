@@ -884,6 +884,26 @@ async function uploadReviewPhoto(file) {
 
 }
 
+// After a logged-in customer's review saves: put the "share on Google"
+// box at the top of the reviews and bring it into view.
+function showGoogleReviewPrompt() {
+
+    const section = document.getElementById("productReviewsSection");
+
+    if (!section || section.querySelector(".google-review-prompt")) {
+        return;
+    }
+
+    section.insertAdjacentHTML("afterbegin", googleReviewPromptMarkup());
+
+    const prompt = section.querySelector(".google-review-prompt");
+
+    if (prompt && prompt.scrollIntoView) {
+        prompt.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+
+}
+
 async function submitReview(myReview) {
 
     const errorEl = document.getElementById("reviewFormError");
@@ -929,7 +949,8 @@ async function submitReview(myReview) {
         }
 
         pendingReviewPhotoFile = null;
-        loadAndRenderReviews();
+        await loadAndRenderReviews();
+        showGoogleReviewPrompt();
 
     } catch (err) {
         errorEl.textContent = err.message || "Could not save your review.";
@@ -1160,6 +1181,7 @@ async function submitInStoreReview() {
                 <h3>Thank you!</h3>
                 <p class="checkout-note">We got your review. It will appear here once Corner Barr has had a quick look.</p>
             </div>
+            ${googleReviewPromptMarkup()}
         `;
 
     } catch (err) {
