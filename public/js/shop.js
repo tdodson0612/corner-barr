@@ -154,6 +154,35 @@ function collectionNumber(index) {
     return String(index + 1).padStart(2, "0");
 }
 
+// Adds "Subscription Boxes" as the last button in the green category
+// menu. Only called once at least one box is PUBLISHED (see
+// js/subscriptions.js), so customers never see it before that.
+function addSubscriptionNavLink() {
+
+    if (!shopCategoryNav || !window.subscriptionBoxesPublished) {
+        return;
+    }
+
+    if (shopCategoryNav.querySelector("[data-subscription-nav-link]")) {
+        return;
+    }
+
+    const categoryLinks = shopCategoryNav.querySelectorAll(".shop-category-link");
+
+    // Wait until the category buttons are there, so it lands last.
+    if (categoryLinks.length === 0) {
+        return;
+    }
+
+    shopCategoryNav.insertAdjacentHTML("beforeend", `
+        <a href="#subscriptions" class="shop-category-link" data-subscription-nav-link>
+            <span>${collectionNumber(categoryLinks.length)}</span>
+            Subscription Boxes
+        </a>
+    `);
+
+}
+
 function renderShopCollections() {
 
     // Only categories that have products are shown to customers.
@@ -210,6 +239,8 @@ function renderShopCollections() {
     replaceShopSections(html);
 
     document.querySelectorAll("[data-shop-dynamic] .product-grid").forEach(grid => attachWishlistButtons(grid));
+
+    addSubscriptionNavLink();
 
 }
 

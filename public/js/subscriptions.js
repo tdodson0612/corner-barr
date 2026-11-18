@@ -99,6 +99,12 @@ async function loadSubscriptionSection() {
     section.querySelector("[data-subscription-grid]").innerHTML = subscriptionPlans.map(subscriptionCardMarkup).join("");
     section.classList.remove("hidden");
 
+    // At least one box is published: add its button to the category menu.
+    window.subscriptionBoxesPublished = true;
+    if (typeof addSubscriptionNavLink === "function") {
+        addSubscriptionNavLink();
+    }
+
     section.querySelectorAll("[data-subscribe-plan]").forEach(button => {
         button.addEventListener("click", () => openSubscriptionSignup(button.getAttribute("data-subscribe-plan")));
     });
